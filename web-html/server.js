@@ -16,6 +16,8 @@ const DB_PATH = path.join(DATA_ROOT, "data.sqlite");
 const SESSION_COOKIE = "kousuan_session";
 const DEFAULT_USERNAME = String(process.env.DEFAULT_USERNAME || process.env.ADMIN_USERNAME || "").trim().toLowerCase();
 const DEFAULT_PASSWORD = String(process.env.DEFAULT_PASSWORD || process.env.ADMIN_PASSWORD || "");
+const FALLBACK_USERNAME = "dongdong";
+const FALLBACK_PASSWORD = "123456";
 
 fs.mkdirSync(DATA_ROOT, { recursive: true });
 
@@ -809,20 +811,28 @@ function ensureUsersTableSchema() {
 
 function ensureDefaultUser() {
   const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  const seedUsername = DEFAULT_USERNAME || FALLBACK_USERNAME;
+  const seedPassword = DEFAULT_PASSWORD || FALLBACK_PASSWORD;
 
-  if (!DEFAULT_USERNAME || !DEFAULT_PASSWORD) {
-    if (userCount === 0) {
-      console.warn("No users found. Set DEFAULT_USERNAME and DEFAULT_PASSWORD in Render env vars.");
-    }
+  if (!seedUsername || !seedPassword) {
     return;
   }
 
-  validateCredentials(DEFAULT_USERNAME, DEFAULT_PASSWORD);
-  db.prepare(
-    `INSERT INTO users (username, password)
-     VALUES (?, ?)
-     ON CONFLICT(username) DO UPDATE SET password = excluded.password`
-  ).run(DEFAULT_USERNAME, DEFAULT_PASSWORD);
+  validateCredentials(seedUsername, seedPassword);
+
+  if (DEFAULT_USERNAME && DEFAULT_PASSWORD) {
+    db.prepare(
+      `INSERT INTO users (username, password)
+       VALUES (?, ?)
+       ON CONFLICT(username) DO UPDATE SET password = excluded.password`
+    ).run(seedUsername, seedPassword);
+    return;
+  }
+
+  if (userCount === 0) {
+    db.prepare("INSERT INTO users (username, password) VALUES (?, ?)").run(seedUsername, seedPassword);
+    console.warn(`Seeded fallback user: ${seedUsername}`);
+  }
 }
 
 function validateCredentials(username, password) {
