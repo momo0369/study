@@ -1729,6 +1729,45 @@
     return "未命名题型";
   }
 
+  async function handleAuthAction(action) {
+    if (action === "logout") {
+      await fetch("/api/auth/logout", { method: "POST" });
+      state.auth.user = null;
+      state.auth.checked = true;
+      routeTo("login");
+      return;
+    }
+    if (action === "login") {
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(state.auth.form),
+        });
+        const raw = await response.text();
+        let data = {};
+        try {
+          data = raw ? JSON.parse(raw) : {};
+        } catch {
+          data = {};
+        }
+        if (!response.ok) {
+          state.auth.error = data.error || `HTTP ${response.status}`;
+          render();
+          return;
+        }
+        state.auth.user = data.user;
+        state.auth.checked = true;
+        state.auth.error = "";
+        state.auth.form.password = "";
+        routeTo("home");
+      } catch (error) {
+        state.auth.error = error && error.message ? error.message : "请求失败";
+        render();
+      }
+    }
+  }
+
   function parseJsonParam(value) {
     try {
       return JSON.parse(decodeURIComponent(value));
