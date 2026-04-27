@@ -7,7 +7,7 @@ const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 const { URL } = require("url");
 
-const HOST = "127.0.0.1";
+const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 8080);
 const WEB_ROOT = __dirname;
 const REMOTE_HOST = "www.xiaoxuestudy.com";

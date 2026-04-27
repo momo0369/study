@@ -1,0 +1,12 @@
+{
+  "name": "study",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Kousuan children study app",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
