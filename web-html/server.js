@@ -11,8 +11,13 @@ const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 8080);
 const WEB_ROOT = __dirname;
 const REMOTE_HOST = "www.xiaoxuestudy.com";
-const DB_PATH = path.join(WEB_ROOT, "data.sqlite");
+const DATA_ROOT = path.resolve(process.env.DATA_DIR || process.env.RENDER_DISK_PATH || WEB_ROOT);
+const DB_PATH = path.join(DATA_ROOT, "data.sqlite");
 const SESSION_COOKIE = "kousuan_session";
+const DEFAULT_USERNAME = String(process.env.DEFAULT_USERNAME || process.env.ADMIN_USERNAME || "").trim().toLowerCase();
+const DEFAULT_PASSWORD = String(process.env.DEFAULT_PASSWORD || process.env.ADMIN_PASSWORD || "");
+
+fs.mkdirSync(DATA_ROOT, { recursive: true });
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -720,4 +725,139 @@ function cleanupTempFiles(paths) {
       }
     } catch {}
   }
+}
+
+function initDatabase() {
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+  ensureUsersTableSchema();
+  ensureDefaultUser();
+}
+
+function ensureUsersTableSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const targetColumns = ["id", "username", "password", "created_time"];
+  const alreadyMatches =
+    columns.length === targetColumns.length &&
+    targetColumns.every((name, index) => columns[index] && columns[index].name === name);
+
+  if (alreadyMatches) {
+    return;
+  }
+
+  const hasPassword = columns.some((column) => column.name === "password");
+  const hasPasswordHash = columns.some((column) => column.name === "password_hash");
+  const hasCreatedTime = columns.some((column) => column.name === "created_time");
+  const hasCreatedAt = columns.some((column) => column.name === "created_at");
+  const passwordExpr =
+    hasPassword && hasPasswordHash
+      ? "COALESCE(NULLIF(password, ''), password_hash, '')"
+      : hasPassword
+        ? "COALESCE(password, '')"
+        : hasPasswordHash
+          ? "COALESCE(password_hash, '')"
+          : "''";
+  const createdTimeExpr = hasCreatedTime
+    ? "CASE WHEN created_time IS NOT NULL AND TRIM(created_time) != '' THEN created_time ELSE CURRENT_TIMESTAMP END"
+    : hasCreatedAt
+      ? "CASE WHEN created_at IS NOT NULL AND LENGTH(TRIM(created_at)) >= 10 THEN created_at ELSE CURRENT_TIMESTAMP END"
+      : "CURRENT_TIMESTAMP";
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec("BEGIN;");
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS users__new;
+      CREATE TABLE users__new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.prepare(`
+      INSERT INTO users__new (id, username, password, created_time)
+      SELECT id, username, ${passwordExpr}, ${createdTimeExpr}
+      FROM users
+    `).run();
+    db.exec(`
+      DROP TABLE users;
+      ALTER TABLE users__new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    throw error;
+  }
+}
+
+function ensureDefaultUser() {
+  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+
+  if (!DEFAULT_USERNAME || !DEFAULT_PASSWORD) {
+    if (userCount === 0) {
+      console.warn("No users found. Set DEFAULT_USERNAME and DEFAULT_PASSWORD in Render env vars.");
+    }
+    return;
+  }
+
+  validateCredentials(DEFAULT_USERNAME, DEFAULT_PASSWORD);
+  db.prepare(
+    `INSERT INTO users (username, password)
+     VALUES (?, ?)
+     ON CONFLICT(username) DO UPDATE SET password = excluded.password`
+  ).run(DEFAULT_USERNAME, DEFAULT_PASSWORD);
+}
+
+function validateCredentials(username, password) {
+  if (!username || username.length < 3 || username.length > 32) {
+    throw httpError(400, "账号长度需在 3 到 32 位之间");
+  }
+  if (!/^[a-z0-9_]+$/i.test(username)) {
+    throw httpError(400, "账号只能包含字母、数字、下划线");
+  }
+  if (!password || String(password).length < 6 || String(password).length > 64) {
+    throw httpError(400, "密码长度需在 6 到 64 位之间");
+  }
+}
+
+function handleLogin(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const user = db.prepare("SELECT id, username, password FROM users WHERE username = ?").get(normalized);
+      if (!user || normalizedPassword !== String(user.password || "")) {
+        throw httpError(401, "账号或密码错误");
+      }
+
+      const session = createSession(user.id);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: { id: Number(user.id), username: user.username },
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleRegister(req, res) {
+  sendJson(res, 403, { error: "暂不开放注册" });
 }
