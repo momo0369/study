@@ -1,0 +1,304 @@
+page {
+    height: 100%;
+    position: relative;
+}
+
+.expression {
+    padding: 0 30rpx;
+}
+
+.progress {
+    height: 20px;
+    margin-left: 10%;
+    margin-top: 5px;
+    width: 80%;
+}
+
+.maintop {
+    align-items: center;
+    background: url("https://www.xiaoxuestudy.com/kousuan_v1/image/main_top.png");
+    background-size: 100% 100%;
+    color: #fff;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    font-size: 30px;
+    justify-content: center;
+    padding: 20px 0;
+    width: 100%;
+}
+
+.stagecommon {
+    height: 70px;
+}
+
+.stageerror {
+    background: url("https://www.xiaoxuestudy.com/kousuan_v1/image/jiucuo.png") no-repeat;
+    background-size: contain;
+    height: 70px;
+    width: 100px;
+}
+
+.inputAnswer {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.answerico {
+    align-self: center;
+    height: 32px;
+    margin-left: 5px;
+    width: 120px;
+}
+
+.timu {
+    display: flex;
+    flex: 1;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.inputAnswer,.timu {
+    align-items: center;
+}
+
+.inputAnswer {
+    height: 80px;
+}
+
+.mainc {
+    background: url("https://www.xiaoxuestudy.com/kousuan_v1/image/main_bottom.png");
+    flex-direction: column-reverse;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.btnGroup,.mainc {
+    display: flex;
+}
+
+.btnGroup {
+    flex-direction: column;
+    padding: 2px;
+}
+
+.item {
+    align-self: center;
+    background-position: 50%;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    margin: 2px;
+    width: 80%;
+}
+
+.show {
+    display: block;
+}
+
+.hide {
+    display: none;
+}
+
+.item0-0 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/0-0.png");
+}
+
+.item0-0:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/0-0_active.png");
+}
+
+.item1-1 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-1.png");
+}
+
+.item1-1:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-1_active.png");
+}
+
+.item1-2 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-2.png");
+}
+
+.item1-2:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-2_active.png");
+}
+
+.item1-3 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-3.png");
+}
+
+.item1-3:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-3_active.png");
+}
+
+.item1-4 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-4.png");
+}
+
+.item1-4:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-4_active.png");
+}
+
+.item1-5 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-5.png");
+}
+
+.item1-5:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/1-5_active.png");
+}
+
+.item2-1 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-1.png");
+}
+
+.item2-1:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-1_active.png");
+}
+
+.item2-2 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-2.png");
+}
+
+.item2-2:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-2_active.png");
+}
+
+.item2-3 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-3.png");
+}
+
+.item2-3:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-3_active.png");
+}
+
+.item2-4 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-4.png");
+}
+
+.item2-4:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-4_active.png");
+}
+
+.item2-5 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-5.png");
+}
+
+.item2-5:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-5_active.png");
+}
+
+.item2-6 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-6.png");
+}
+
+.item2-6:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/2-6_active.png");
+}
+
+.item3-1 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/3-1.png");
+}
+
+.item3-1:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/3-1_active.png");
+}
+
+.item3-2 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/3-2.png");
+}
+
+.item3-2:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/3-2_active.png");
+}
+
+.item3-3 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/3-3.png");
+}
+
+.item3-3:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/3-3_active.png");
+}
+
+.item3-4 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/3-4.png");
+}
+
+.item3-4:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/3-4_active.png");
+}
+
+.item4-1 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/4-1.png");
+}
+
+.item4-1:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/4-1_active.png");
+}
+
+.item4-2 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/4-2.png");
+}
+
+.item4-2:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/4-2_active.png");
+}
+
+.item4-3 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/4-3.png");
+}
+
+.item4-3:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/4-3_active.png");
+}
+
+.item5-1 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/5-1.png");
+}
+
+.item5-1:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/5-1_active.png");
+}
+
+.item5-2 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/5-2.png");
+}
+
+.item5-2:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/5-2_active.png");
+}
+
+.item5-3 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/5-3.png");
+}
+
+.item5-3:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/5-3_active.png");
+}
+
+.item5-4 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/5-4.png");
+}
+
+.item5-4:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/5-4_active.png");
+}
+
+.printbtns {
+    display: flex;
+    margin-top: 10rpx;
+    width: 90%;
+}
+
+.opbtn {
+    border: 1rpx solid #fff;
+    border-radius: 10%;
+    border-radius: 20rpx;
+    font-size: 28rpx;
+    height: 30rpx;
+    line-height: 30rpx;
+    margin-right: 20rpx;
+    padding: 10rpx 15rpx;
+    text-align: center;
+    width: 85rpx;
+}

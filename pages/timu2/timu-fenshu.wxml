@@ -1,0 +1,60 @@
+<import src="../templates/fenshu.wxml"></import>
+<import src="../templates/zhengshu.wxml"></import>
+<import src="../templates/tips.wxml"></import>
+<view catchtouchmove="preventTouchMove" class="container {{view_class}}">
+    <view class="canvasbtns">
+        <view bindtap="closeCanvas" class="closetuya"></view>
+        <view bindtap="clearCanvas" class="cleartuya"></view>
+    </view>
+    <view class="canvas_area">
+        <canvas bindtouchend="touchEnd" bindtouchmove="touchMove" bindtouchstart="touchStart" canvasId="myCanvas" class="myCanvas" disableScroll="false"></canvas>
+    </view>
+</view>
+<view class="mainc">
+    <view class="layout-bottom">
+        <view class="btnGroup">
+            <view bindtap="btnNum" class="item id1" data-id="{{id1}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnNum" class="item id2" data-id="{{id2}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnNum" class="item id3" data-id="{{id3}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnClear" class="item idcls" data-id="{{idcls}}" style="height:{{btnHeight}}px"></view>
+        </view>
+        <view class="btnGroup">
+            <view bindtap="btnNum" class="item id4" data-id="{{id4}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnNum" class="item id5" data-id="{{id5}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnNum" class="item id6" data-id="{{id6}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnPrintview" class="item iddownload" style="height:{{btnHeight}}px"></view>
+        </view>
+        <view class="btnGroup">
+            <view bindtap="btnNum" class="item id7" data-id="{{id7}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnNum" class="item id8" data-id="{{id8}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnNum" class="item id9" data-id="{{id9}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnShare" class="item idshare" data-id="{{idshare}}" style="height:{{btnHeight}}px">
+                <button class="share" openType="share" style="height:{{btnHeight}}px;color:#327794;background:transparent" type="primary">. </button>
+            </view>
+        </view>
+        <view class="btnGroup">
+            <view bindtap="btnNum" class="item0 id0" data-id="{{id0}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnDot" class="item iddot" data-id="{{iddot}}" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnDaan" class="item idanswer" data-id="{{idanswer}}" style="height:{{btnHeight}}px"></view>
+        </view>
+    </view>
+    <view class="progress {{progressid}}"></view>
+    <view class="maintop">
+        <view class="stageerror {{stageHidden}}"></view>
+        <view class="printbtns" wx:if="{{stageHidden=='hide'&&IsOnTuya==0}}">
+            <view bindtap="btnPrintview" class="opbtn">打印</view>
+            <view bindtap="btnjq" class="opbtn" data-jqlink="{{JQlink}}" wx:if="{{showJQ==1}}">技巧</view>
+            <view bindtap="btnTuya" class="opbtn">演算</view>
+        </view>
+        <view class="timu" style="font-weight:bolder;font-size:{{timusize}}rpx;font-family:{{timufamily}};">
+            <template is="{{currentTimuTemplateName}}" data="{{...currentTimuObj}}"></template>
+        </view>
+        <view class="inputAnswer">
+            <view style="display:flex;font-weight:bolder;font-size:{{daansize}}rpx;font-family:{{daanfamily}}">
+                <template is="tips" data="{{...currentAnswerObj}}"></template>
+                <image class="answerico {{inputRightFlagHidden}}" src="../../img/answer_right.png"></image>
+                <image class="answerico {{inputWrongFlagHidden}}" src="../../img/answer_wrong.png"></image>
+            </view>
+        </view>
+    </view>
+</view>

@@ -1,0 +1,17 @@
+<template name="jiefangcheng">
+    <block wx:if="{{istips!=1}}">
+        <block wx:for="{{nums}}" wx:for-index="idx" wx:key="nouse">
+            <view class="operator">{{nums[idx-1].sign}}</view>
+            <view wx:if="{{item.pre!=''}}">{{item.pre}}</view>
+            <view class="fenshu">
+                <view class="fenint" wx:if="{{item.int!=-1}}">{{item.int}}</view>
+                <view class="fenshupart" wx:if="{{item.fenshu!=-1}}">
+                    <view class="fenzi">{{item.fenzi}}</view>
+                    <view class="fenshuline"></view>
+                    <view class="fenmu">{{item.fenmu}}</view>
+                </view>
+            </view>
+            <view wx:if="{{item.tail!=''}}">{{item.tail}}</view>
+        </block>
+    </block>
+</template>

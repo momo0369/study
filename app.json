@@ -1,0 +1,50 @@
+{
+    "pages": [
+        "pages/index/index",
+        "pages/test/test",
+        "pages/timu2/score_win",
+        "pages/share/share",
+        "pages/printselect/printselect",
+        "pages/kousuanselect/kousuanselect",
+        "pages/printview/printview",
+        "pages/twentyfour/index",
+        "pages/twentyfour/success",
+        "pages/twentyfour/issue",
+        "pages/jiangzhuang/jiangzhuang",
+        "pages/article/article",
+        "pages/timu2/timu",
+        "pages/timu2/timu-fenshu",
+        "pages/timu2/timu-danweixuanze",
+        "pages/timu2/timu-bijiaodaxiao",
+        "pages/timu2/timu-percent",
+        "pages/timu2/timu-jiefangcheng",
+        "pages/timu2/score_fail",
+        "pages/feedback/feedback"
+    ],
+    "window": {
+        "backgroundTextStyle": "light",
+        "navigationBarBackgroundColor": "#3abccc",
+        "navigationBarTitleText": "口算天天练",
+        "navigationBarTextStyle": "black"
+    },
+    "tabBar": {
+        "color": "#9a9a9a",
+        "selectedColor": "#47bafd",
+        "borderStyle": "black",
+        "backgroundColor": "#fcfcfc",
+        "list": [
+            {
+                "text": "测试1",
+                "pagePath": "pages/index/index",
+                "iconPath": "img/answer_right.png",
+                "selectedIconPath": "img/answer_right.png"
+            },
+            {
+                "text": "测试2",
+                "pagePath": "pages/feedback/feedback",
+                "iconPath": "img/answer_right.png",
+                "selectedIconPath": "img/answer_right.png"
+            }
+        ]
+    }
+}

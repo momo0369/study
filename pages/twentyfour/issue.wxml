@@ -1,0 +1,8 @@
+<view class="container">
+    <view class="input item">
+        <input bindinput="bindblur" class="searchtextinput" confirmType="search" placeholder="请输入四个数字，计算24点" type="text" value="{{inputvalue}}"></input>
+    </view>
+    <view class="item">
+        <button bindtap="btnSearch" class="searchbtn">计算</button>
+    </view>
+</view>

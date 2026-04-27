@@ -1,0 +1,54 @@
+<view class="mainc">
+    <view class="layout-bottom">
+        <view class="btnGroup">
+            <view bindtap="btnAnswer" class="item item0-0" style="height:{{btnWidth*0.6}}px"></view>
+        </view>
+        <view class="gtltwraper">
+            <view bindtap="btnBtn" class="item itemgt" data-disp=">" data-id=">" style="height:{{btnHeight}}px"></view>
+            <view bindtap="btnBtn" class="item itemlt" data-disp="<" data-id="<" style="height:{{btnHeight}}px"></view>
+        </view>
+        <view class="btnGroup">
+            <view bindtap="btnBtn" class="item itemeq" data-disp="=" data-id="=" style="height:{{btnHeight}}px"></view>
+        </view>
+    </view>
+    <view class="progress {{progressid}}"></view>
+    <view class="maintop">
+        <view class="stageerror {{stageHidden}}"></view>
+        <view class="timu" style="font-weight:bolder;font-size:{{timusize}} rpx;font-family:{{timufamily}};">
+            <block wx:for="{{nums_left}}" wx:for-index="idx" wx:key="nouse">
+                <view class="operator">{{nums_left[idx-1].sign}}</view>
+                <view wx:if="{{item.pre!=''}}">{{item.pre}}</view>
+                <view class="fenshu">
+                    <view class="fenint" wx:if="{{item.int!=-1}}">{{item.int}}</view>
+                    <view class="fenshupart" wx:if="{{item.fenshu!=-1}}">
+                        <view class="fenzi">{{item.fenzi}}</view>
+                        <view class="fenshuline"></view>
+                        <view class="fenmu">{{item.fenmu}}</view>
+                    </view>
+                </view>
+                <view wx:if="{{item.tail!=''}}">{{item.tail}}</view>
+            </block>
+            <view class="operator"> ( ) </view>
+            <block wx:for="{{nums_right}}" wx:for-index="idx" wx:key="nouse">
+                <view class="operator">{{nums_right[idx-1].sign}}</view>
+                <view wx:if="{{item.pre!=''}}">{{item.pre}}</view>
+                <view class="fenshu">
+                    <view class="fenint" wx:if="{{item.int!=-1}}">{{item.int}}</view>
+                    <view class="fenshupart" wx:if="{{item.fenshu!=-1}}">
+                        <view class="fenzi">{{item.fenzi}}</view>
+                        <view class="fenshuline"></view>
+                        <view class="fenmu">{{item.fenmu}}</view>
+                    </view>
+                </view>
+                <view wx:if="{{item.tail!=''}}">{{item.tail}}</view>
+            </block>
+        </view>
+        <view class="inputAnswer">
+            <view style="display:flex;font-weight:bolder;font-size:{{daansize}} rpx;font-family:{{daanfamily}}">
+                <view>{{candidateAnswer}}</view>
+                <image class="answerico {{inputRightFlagHidden}}" src="../../img/answer_right.png"></image>
+                <image class="answerico {{inputWrongFlagHidden}}" src="../../img/answer_wrong.png"></image>
+            </view>
+        </view>
+    </view>
+</view>

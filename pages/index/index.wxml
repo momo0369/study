@@ -1,0 +1,32 @@
+<view class="page-box">
+    <view class="kousuan-nianxi-box">
+        <image bindtap="btnOnlineKousuan" mode="aspectFit" src="/img/kousuan.jpg" style="margin-top: 30rpx;"></image>
+    </view>
+    <view class="download-box">
+        <image bindtap="btnDownload" mode="aspectFit" src="/img/download.jpg"></image>
+        <view class="hongdian">
+            <text class="iconfont icon-new" style="font-size: 60rpx;color:#e15100" wx:if="{{showHongdian==1}}"></text>
+        </view>
+    </view>
+    <view class="suan24dian-box">
+        <image bindtap="btndian24" mode="aspectFit" src="/img/suan24dian.jpg"></image>
+    </view>
+    <view class="share-box">
+        <button openType="share" style="padding-left: 0;padding-right: 0; background-color: transparent;">
+            <image mode="aspectFit" src="/img/fengxiang.jpg"></image>
+        </button>
+    </view>
+    <view class="bottom-nav">
+        <view class="bottom-nav-link">
+            <text bind:tap="btnLearntime">认识时间</text>
+            <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+            <text bind:tap="btnDanci">单词听写</text>
+            <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+            <text bind:tap="btnShengzici">生字词</text>
+            <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+            <text bind:tap="btnHanoi">汉诺塔</text>
+            <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+            <text bind:tap="btnYinbiao">国际音标</text>
+        </view>
+    </view>
+</view>

@@ -1,0 +1,179 @@
+.page-box {
+    background-color: #5abcd0;
+    height: 100vh;
+    width: 100%;
+}
+
+.select-fixed-area {
+    background-color: #3abccc;
+    height: 168rpx;
+    position: fixed;
+    width: 100%;
+    z-index: 3;
+}
+
+.replace-fixed-area {
+    background-color: #3abccc;
+    height: 140rpx;
+    width: 100%;
+    z-index: 2;
+}
+
+.grade-box {
+    background-color: #318494;
+    border-radius: 10rpx;
+    width: 93%;
+}
+
+.grade-box,.gradeBtn {
+    color: #fff;
+    text-align: center;
+}
+
+.gradeBtn {
+    background: url(https://www.xiaoxuestudy.com/kousuan_v2/image/selection.png) no-repeat;
+    background-position: 50%;
+    background-size: 100% 100%;
+    font-size: 40rpx;
+    height: 130rpx;
+    letter-spacing: 2rpx;
+    line-height: 130rpx;
+    margin: 6px auto 8px 3%;
+    width: 94%;
+}
+
+.timus-box {
+    background-color: #3abccc;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-top: 20rpx;
+}
+
+.timuitem {
+    background: url(https://www.xiaoxuestudy.com/kousuan_v2/image/timuitem.png) no-repeat;
+    background-position: 50%;
+    background-size: 100% 100%;
+    color: #048290;
+    height: 162rpx;
+    margin: 6px auto 6px 3%;
+    text-align: center;
+    width: 94%;
+}
+
+.timu-name {
+    font-size: 34rpx;
+    font-weight: 700;
+}
+
+.timu-demo {
+    font-size: 28rpx;
+}
+
+.stars {
+    display: flex;
+    justify-content: center;
+    padding-top: 20rpx;
+}
+
+.itemstar {
+    height: 32rpx;
+    margin: 0 4rpx;
+    width: 32rpx;
+}
+
+.konghang-area {
+    background-color: #3abccc;
+    height: 40rpx;
+    width: 100%;
+}
+
+.mask {
+    background: #000;
+    height: 100vh;
+    left: 0;
+    opacity: .5;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 10;
+}
+
+.page-box-grade-mask {
+    background-color: #fff;
+    border-radius: 20rpx;
+    bottom: 0;
+    left: 0;
+    padding-bottom: 50rpx;
+    position: fixed;
+    z-index: 99;
+}
+
+.grade-dialog-box {
+    font-size: 28rpx;
+    margin: 0 20rpx;
+}
+
+.close-out-box {
+    display: flex;
+    margin-top: 20rpx;
+}
+
+.close-left-space {
+    width: 670rpx;
+}
+
+.close-box {
+    display: flex;
+    height: 60rpx;
+    justify-content: flex-end;
+    line-height: 60rpx;
+    width: 80rpx;
+}
+
+.close-left {
+    width: 20rpx;
+}
+
+.close-center {
+    font-size: 40rpx;
+    text-align: right;
+    width: 40rpx;
+}
+
+.close-right {
+    text-align: right;
+    width: 20rpx;
+}
+
+.tip-label {
+    color: #444;
+    font-weight: 700;
+    height: 60rpx;
+    line-height: 60rpx;
+    margin-left: 10rpx;
+    text-align: left;
+}
+
+.buttons-box {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.button-item {
+    background-color: #f7f7f7;
+    border-radius: 10rpx;
+    color: #000;
+    font-size: 26rpx;
+    height: 60rpx;
+    line-height: 60rpx;
+    margin: 16rpx 0;
+    text-align: center;
+    width: 200rpx;
+}
+
+.fengexian1 {
+    border: 1rpx solid #e7e7e7;
+    margin: 16rpx 0;
+}

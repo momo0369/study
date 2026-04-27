@@ -1,0 +1,10 @@
+.button-box {
+    border: 2rpx solid #000;
+    border-radius: 20rpx;
+    height: 80rpx;
+    line-height: 80rpx;
+    margin-left: 50rpx;
+    margin-top: 50rpx;
+    text-align: center;
+    width: 300rpx;
+}

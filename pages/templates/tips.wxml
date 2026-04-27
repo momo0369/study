@@ -1,0 +1,13 @@
+<template name="tips">
+    <view class="inputarea">
+        <view wx:if="{{belowInput==1&&viewdaan==0}}">{{candidate}}</view>
+    </view>
+    <view class="fenshu tips" wx:if="{{viewdaan==1}}">
+        <view class="fenint" wx:if="{{answerInt!=-1}}">{{answerInt}}</view>
+        <view class="fenshupart" wx:if="{{answerFenshu!=-1}}">
+            <view class="fenzi">{{answerFenzi}}</view>
+            <view class="fenshuline" wx:if="{{answerFenshu!=-1}}"></view>
+            <view class="fenmu">{{answerFenmu}}</view>
+        </view>
+    </view>
+</template>

@@ -1,0 +1,190 @@
+<view class="doc-title" style="font-size: {{titleSize}}rpx;">{{docTitle}}</view>
+<view class="timus-box">
+    <block wx:if="{{flagFenshu}}">
+        <block wx:if="{{printStyleId==1||printStyleId==4}}">
+            <view class="timu-fenshu" style="width:{{timuWidth}}rpx;font-size:{{timuSize}}rpx;margin-bottom:{{timuBottom}}rpx" wx:for="{{arrFenshu}}" wx:for-item="timu-item" wx:key="nouse">
+                <block wx:for="{{arrFenshu[index]}}" wx:for-index="idx" wx:key="nouse">
+                    <view class="operator">{{arrFenshu[index][idx-1].sign}}</view>
+                    <view wx:if="{{item.pre!=''}}">{{item.pre}}</view>
+                    <view class="fenshu">
+                        <view class="fenint" wx:if="{{item.int!=-1}}">{{item.int}}</view>
+                        <view class="fenshupart" wx:if="{{item.fenshu!=-1}}">
+                            <view class="fenzi">{{item.fenzi}}</view>
+                            <view class="fenshuline"></view>
+                            <view class="fenmu">{{item.fenmu}}</view>
+                        </view>
+                    </view>
+                    <view wx:if="{{item.tail!=''}}">{{item.tail}}</view>
+                </block>
+                <view class="operator">=</view>
+            </view>
+        </block>
+    </block>
+    <block wx:if="{{!flagFenshu}}">
+        <block wx:if="{{printStyleId==1||printStyleId==4&&xlid!=20&&xlid!=22&&xlid!=142&&xlid!=143}}">
+            <view class="timu" style="width:{{timuWidth}}rpx;font-size:{{timuSize}}rpx;margin-bottom:{{timuBottom}}rpx" wx:for="{{timus}}" wx:key="nouse">{{item.timu}}</view>
+        </block>
+        <block wx:if="{{printStyleId==2||printStyleId==4&&(xlid==20||xlid==22||xlid==148||xlid==142||xlid==143)}}">
+            <view class="fill-timu" style="font-size: {{fillTimuSize}}rpx;margin-bottom:{{timuBottom}}rpx" wx:for="{{fill_timus}}" wx:key="nouse">{{item}}</view>
+        </block>
+        <block wx:if="{{printStyleId==3&&isChufaShushi==0}}">
+            <view class="shushi-timu-box" wx:for="{{shushi_timus}}" wx:key="nouse">
+                <view class="timu-content">{{item.timu_content}}</view>
+                <view class="shushi-small-box">
+                    <view class="num1">{{item.num1}}</view>
+                    <view class="row2">
+                        <view class="operator-value">{{item.operatorValue}}</view>
+                        <view class="num2">{{item.num2}}</view>
+                    </view>
+                    <view class="line"></view>
+                </view>
+            </view>
+        </block>
+        <block wx:if="{{printStyleId==3&&isChufaShushi==1}}">
+            <view class="shushi-chufa-timu-box" wx:for="{{shushi_timus}}" wx:key="nouse">
+                <view class="chufa-timu-content">{{item.timu_content}}</view>
+                <view class="chushi-box">
+                    <view class="chushi-num2">{{item.num2}}</view>
+                    <view class="chushi-num1">{{item.num1}}</view>
+                </view>
+            </view>
+        </block>
+    </block>
+</view>
+<view bindtap="btnMask" catchtouchmove="preventTouchMove" class="mask" data-dialogid="1" wx:if="{{showMask}}"></view>
+<view catchtouchmove="preventTouchMove" class="page-box-download-mask" wx:if="{{showDownloadDialog}}">
+    <view class="close-out-box">
+        <view class="close-left-space"></view>
+        <view bindtap="btnCloseDialog" class="close-box" data-dialogid="1">
+            <view class="close-left"></view>
+            <view class="close-center">
+                <text class="iconfont icon-close" style="font-size: 46rpx;"></text>
+            </view>
+            <view class="close-right"></view>
+        </view>
+    </view>
+    <view class="download-box">
+        <view class="tip-label">下载题目</view>
+        <view class="buttons-box">
+            <view bindtap="btnDownloadItem" class="button-item-download" data-displaydaan="0" data-id="2" data-opentype="1" style="background-color:{{download_back_color[2]}};color: {{download_front_color[2]}};;">下载保存 <view class="hongdian-button-item" wx:if="{{showHongdian==1}}"></view>
+            </view>
+            <view bindtap="btnDownloadItem" class="button-item-download" data-displaydaan="0" data-id="1" data-opentype="3" style="background-color:{{download_back_color[1]}};color: {{download_front_color[1]}};">复制链接</view>
+            <view bindtap="btnDownloadItem" class="button-item-download" data-displaydaan="0" data-id="0" data-opentype="2" style="background-color:{{download_back_color[0]}};color: {{download_front_color[0]}};">直接打开</view>
+        </view>
+        <view class="fengexian1"></view>
+        <view class="tip-label">下载答案</view>
+        <view class="buttons-box">
+            <view bindtap="btnDownloadItem" class="button-item-download" data-displaydaan="1" data-id="5" data-opentype="1" style="background-color:{{download_back_color[5]}};color: {{download_front_color[5]}};">下载保存</view>
+            <view bindtap="btnDownloadItem" class="button-item-download" data-displaydaan="1" data-id="4" data-opentype="3" style="background-color:{{download_back_color[4]}};color: {{download_front_color[4]}};">复制链接</view>
+            <view bindtap="btnDownloadItem" class="button-item-download" data-displaydaan="1" data-id="3" data-opentype="2" style="background-color:{{download_back_color[3]}};color: {{download_front_color[3]}};">直接打开</view>
+        </view>
+    </view>
+</view>
+<view catchtouchmove="preventTouchMove" class="page-box-setting-mask" wx:if="{{showPageSetDialog}}">
+    <view class="close-out-box">
+        <view class="close-left-space"></view>
+        <view bindtap="btnCloseDialog" class="close-box" data-dialogid="2">
+            <view class="close-left"></view>
+            <view class="close-center">
+                <text class="iconfont icon-close" style="font-size: 46rpx;"></text>
+            </view>
+            <view class="close-right"></view>
+        </view>
+    </view>
+    <view class="setting-box">
+        <view bindtap="btnTitleTips" class="page-tip-label">1.修改文档标题<text class="iconfont icon-dengpao" style="color: #ffc300;font-size: 32rpx;padding-right: 6rpx;height: 60rpx;line-height: 60rpx;"></text>
+        </view>
+        <view class="input-button-box">
+            <input bindblur="getPageSetInput" bindfocus="changeInputBorderColor" data-id="1" style="border-color: {{input1BorderColor}};" type="text" value="{{docTitle}}"></input>
+            <view bindtap="btnResetPage" class="reset-button-item" data-id="1">重置</view>
+        </view>
+        <view class="page-tip-label">2.修改右上角"姓名"标签</view>
+        <view class="input-button-box">
+            <input bindblur="getPageSetInput" bindfocus="changeInputBorderColor" data-id="2" style="border-color: {{input2BorderColor}};" type="text" value="{{nameLabel}}"></input>
+            <view bindtap="btnResetPage" class="reset-button-item" data-id="2">重置</view>
+        </view>
+        <view class="page-tip-label">3.修改右上角"得分"标签</view>
+        <view class="input-button-box">
+            <input bindblur="getPageSetInput" bindfocus="changeInputBorderColor" data-id="3" style="border-color: {{input3BorderColor}};" type="text" value="{{scoreLabel}}"></input>
+            <view bindtap="btnResetPage" class="reset-button-item" data-id="3">重置</view>
+        </view>
+        <view class="page-tip-label">4.修改底部励志金句</view>
+        <view class="input-button-box">
+            <input bindblur="getPageSetInput" bindfocus="changeInputBorderColor" data-id="4" style="border-color: {{input4BorderColor}};" type="text" value="{{jinju}}"></input>
+            <view bindtap="btnResetPage" class="reset-button-item" data-id="4">重置</view>
+        </view>
+    </view>
+</view>
+<view catchtouchmove="preventTouchMove" class="page-box-tiliang-mask" wx:if="{{showTiliangDialog}}">
+    <view class="close-out-box">
+        <view class="close-left-space"></view>
+        <view bindtap="btnCloseDialog" class="close-box" data-dialogid="3">
+            <view class="close-left"></view>
+            <view class="close-center">
+                <text class="iconfont icon-close" style="font-size: 46rpx;"></text>
+            </view>
+            <view class="close-right"></view>
+        </view>
+    </view>
+    <view class="tiliang-box">
+        <view class="tip-label-mode">
+            <text class="iconfont icon-dengpao" style="color: #ffc300;font-size: 28rpx;padding-right: 6rpx;height: 60rpx;line-height: 60rpx;"></text>{{tiliang_tips}}</view>
+        <view class="tip-label">按页数</view>
+        <view class="buttons-box-tiliang">
+            <view bindtap="btnTiliangItem" class="tiliang-button-item" data-byid="1" data-id="{{index}}" data-pages="{{index}}" style="background-color:{{bypage_back_color[index]}};color: {{bypage_front_color[index]}};" wx:for="{{6}}" wx:key="nouse">{{bypage_title_arr[index]}}</view>
+        </view>
+        <view class="fengexian1"></view>
+        <view class="tip-label">按题量</view>
+        <view class="buttons-box-tiliang">
+            <view bindtap="btnTiliangItem" class="tiliang-button-item" data-byid="2" data-id="{{index}}" data-nums="{{bycount_title_arr[index]}}" style="background-color:{{bycount_back_color[index]}};color: {{bycount_front_color[index]}};" wx:for="{{5}}" wx:key="nouse">{{bycount_title_arr[index]}}</view>
+            <picker bindchange="bindCountPickerChange" range="{{pickerCountArray}}" value="{{indexCount}}">
+                <view bindtap="btnTiliangItem" class="tiliang-button-item" data-bypage="0" data-id="5" data-nums="{{printCount}}" style="background-color:{{bycount_back_color[5]}};color: {{bycount_front_color[5]}};">自定义<text class="iconfont icon-xiala" style="height: 40rpx;line-height: 40rpx;"></text>
+                </view>
+            </picker>
+        </view>
+    </view>
+</view>
+<view class="bottom-fixed-buttons">
+    <view bindtap="btnShowTiliangDialog" class="fixed-button">题量<text class="iconfont icon-xiala" style="margin-right:4rpx;font-size: 30rpx;color: #4c4c4c;font-weight: bold; height: 70rpx;line-height: 70rpx;"></text>
+    </view>
+    <view bindtap="btnShowShushiDialog" class="fixed-button">竖式<text class="iconfont icon-xiala" style="margin-right:4rpx;font-size: 30rpx;color: #4c4c4c;font-weight: bold; height: 70rpx;line-height: 70rpx;"></text>
+    </view>
+    <view bindtap="btnHuanyihuan" class="fixed-button">
+        <text class="iconfont icon-qiehuan" style="margin-right:4rpx;font-size: 30rpx;color: #4c4c4c;font-weight: bold; height: 70rpx;line-height: 70rpx;"></text>换一换</view>
+</view>
+<view class="bottom-nav">
+    <view bindtap="btnShowDownloadDialog" class="icon-text-group-download">
+        <view class="iconfont icon-download" style="font-size: 50rpx;color: #4c4c4c;height: 50rpx;line-height: 50rpx;"></view>
+        <view class="hongdian" wx:if="{{showHongdian==1}}"></view>
+        <view class="text-box">下载打印</view>
+    </view>
+    <view bindtap="btnOnlineKousuan" class="icon-text-group">
+        <view class="iconfont icon-kousuan" style="font-size: 50rpx;color: #4c4c4c;height: 50rpx;line-height: 50rpx; "></view>
+        <view class="text-box">在线答题</view>
+    </view>
+    <view class="icon-text-group">
+        <button class="share-button" openType="share">
+            <view class="iconfont icon-share" style="font-size: 50rpx;color: #4c4c4c;height: 50rpx;line-height: 50rpx;"></view>
+            <view class="text-box">布置练习</view>
+        </button>
+    </view>
+    <view bindtap="btnShowPageSetDialog" class="icon-text-group">
+        <view class="iconfont icon-shezhi" style="font-size: 50rpx;color: #4c4c4c;height: 50rpx;line-height: 50rpx;"></view>
+        <view class="text-box">页面设置</view>
+    </view>
+</view>
+<view catchtouchmove="preventTouchMove" class="page-box-shushi-mask" wx:if="{{showShushiDialog}}">
+    <view class="close-out-box">
+        <view class="close-left-space"></view>
+        <view bindtap="btnCloseDialog" class="close-box" data-dialogid="4">
+            <view class="close-left"></view>
+            <view class="close-center">
+                <text class="iconfont icon-close" style="font-size: 46rpx;"></text>
+            </view>
+            <view class="close-right"></view>
+        </view>
+    </view>
+    <view class="buttons-box-shushi">
+        <view bindtap="btnShushiItem" class="button-item-shushi" data-id="{{index}}" data-title="{{shushi_title_arr[index]}}" style="background-color:{{shushi_back_color[index]}};color: {{shushi_front_color[index]}};" wx:for="{{shushi_title_arr}}" wx:key="nouse">{{shushi_title_arr[index]}}</view>
+    </view>
+</view>

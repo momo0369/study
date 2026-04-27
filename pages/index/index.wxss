@@ -1,0 +1,97 @@
+.page-box {
+    background: #3abccc;
+    display: block;
+    height: 100vh;
+    padding-bottom: 180rpx;
+    text-align: center;
+    width: 100%;
+}
+
+.message-bar {
+    color: #fff;
+    display: flex;
+    height: 32rpx;
+    line-height: 32rpx;
+    margin: 20rpx auto;
+    width: 360px;
+}
+
+.message-bar,.message-bar .text-display {
+    font-size: 32rpx;
+    text-align: left;
+}
+
+.adContainer {
+    margin: 0rpx auto;
+    width: 360px;
+}
+
+.module {
+    margin: 30px auto;
+}
+
+.module:active {
+    position: relative;
+    top: 0;
+}
+
+button::after {
+    border: none;
+}
+
+.sharebtn {
+    background: url(https://www.xiaoxuestudy.com/kousuan_v1/image/shareus.jpg) no-repeat;
+    background-position: 50%;
+    background-size: contain;
+    width: 100%;
+}
+
+.body {
+    font-family: 微软雅黑;
+    font-size: 18px;
+    height: 20%;
+    margin-top: 20px;
+    text-align: center;
+}
+
+button::after {
+    border: 0;
+}
+
+image {
+    height: 220rpx;
+    width: 92%;
+}
+
+.download-box {
+    position: relative;
+}
+
+.hongdian {
+    height: 10rpx;
+    position: absolute;
+    right: 130rpx;
+    top: 38rpx;
+    width: 10rpx;
+}
+
+.bottom-nav {
+    background-color: #3abccc;
+    bottom: 0;
+    height: 150rpx;
+    left: 0;
+    position: fixed;
+    width: 100%;
+    z-index: 99;
+}
+
+.bottom-nav-link {
+    align-items: center;
+    color: #eee;
+    display: flex;
+    font-size: 30rpx;
+    height: 150rpx;
+    justify-content: center;
+    line-height: 150rpx;
+    margin-bottom: 40rpx;
+}

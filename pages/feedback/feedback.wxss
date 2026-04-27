@@ -1,0 +1,42 @@
+.textarea-title {
+    font-size: 36rpx;
+    font-weight: 700;
+    padding: 20rpx 30rpx;
+}
+
+.textarea-box {
+    border: 1rpx solid #7c7c7c;
+    border-radius: 10rpx;
+    height: 300rpx;
+    margin: 0rpx 30rpx;
+}
+
+textarea {
+    font-size: 32rpx;
+}
+
+.bottom-wrapper,textarea {
+    width: 100%;
+}
+
+.nav-bottom {
+    display: flex;
+    justify-content: space-between;
+    margin: 100rpx 30rpx;
+}
+
+.nav-bottom .bnt {
+    border: 1rpx solid #4c4c4c;
+    border-radius: 20rpx;
+    font-size: 36rpx;
+    height: 80rpx;
+    line-height: 80rpx;
+    text-align: center;
+    width: 320rpx;
+}
+
+.nav-bottom .bnt.left,.nav-bottom .bnt.right {
+    background-color: #fff;
+    color: #4c4c4c;
+    opacity: .99;
+}

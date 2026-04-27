@@ -1,0 +1,157 @@
+page {
+    background-color: #fff;
+}
+
+.jiangzhuang-image {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    margin: 20rpx 0 0;
+    padding: 0;
+    width: 100%;
+}
+
+.jiangzhuang-image-box {
+    height: 495rpx;
+    margin: 20rpx auto 40rpx;
+    width: 700rpx;
+}
+
+image {
+    width: 100%;
+}
+
+.button-share {
+    color: #fff;
+}
+
+.button-share,.button-xiangce {
+    background-color: #4eb460;
+    border-radius: 10rpx;
+    font-size: 36rpx;
+    height: 80rpx;
+    line-height: 80rpx;
+    margin-top: 20rpx;
+    text-align: center;
+    width: 70%;
+}
+
+.button-xiangce {
+    background-color: #f3f3f3;
+    color: #4c4c4c;
+}
+
+.button-box {
+    display: flex;
+    justify-content: center;
+    margin: 30rpx 30rpx 0rpx;
+}
+
+.share-button {
+    background-color: transparent;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.share-button:after {
+    border: none;
+}
+
+.mask {
+    background: #000;
+    height: 100vh;
+    opacity: .5;
+    top: 0;
+    z-index: 99;
+}
+
+.mask,.nickname-setting-mask {
+    left: 0;
+    position: fixed;
+    width: 100%;
+}
+
+.nickname-setting-mask {
+    background-color: #fff;
+    border-radius: 20rpx;
+    bottom: 0;
+    font-size: 32rpx;
+    height: 800rpx;
+    z-index: 999;
+}
+
+.input-button-box {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 2rpx;
+}
+
+.confirm-button-item {
+    background-color: #f7f7f7;
+    border: 1rpx solid #f7f7f7;
+    border-radius: 10rpx;
+    color: #4c4c4c;
+    height: 70rpx;
+    line-height: 70rpx;
+    margin-right: 10rpx;
+    text-align: center;
+    width: 180rpx;
+}
+
+.page-tip-label {
+    margin-bottom: 30rpx;
+    margin-top: 30rpx;
+}
+
+.page-tip-label,input {
+    color: #4c4c4c;
+    font-size: 32rpx;
+    margin-left: 10rpx;
+    text-align: left;
+}
+
+input {
+    border: 1rpx solid #bbb;
+    border-radius: 10rpx;
+    caret-color: #000;
+    color: #000;
+    display: inline-block;
+    height: 70rpx;
+    line-height: 70rpx;
+    padding-left: 10rpx;
+    text-indent: 20rpx;
+    vertical-align: middle;
+    width: 480rpx;
+}
+
+.close-out-box {
+    display: flex;
+    margin-top: 20rpx;
+}
+
+.close-left-space {
+    width: 670rpx;
+}
+
+.close-box {
+    display: flex;
+    height: 60rpx;
+    justify-content: flex-end;
+    line-height: 60rpx;
+    width: 80rpx;
+}
+
+.close-left {
+    width: 20rpx;
+}
+
+.close-center {
+    font-size: 40rpx;
+    text-align: right;
+    width: 40rpx;
+}
+
+.close-right {
+    text-align: right;
+    width: 20rpx;
+}

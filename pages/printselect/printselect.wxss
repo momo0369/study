@@ -1,0 +1,216 @@
+.page-box {
+    background-color: #5abcd0;
+    height: 100vh;
+    width: 100%;
+}
+
+.select-fixed-area {
+    background-color: #3abccc;
+    height: 110rpx;
+    position: fixed;
+    width: 100%;
+    z-index: 3;
+}
+
+.replace-fixed-area {
+    background-color: #3abccc;
+    height: 120rpx;
+    width: 100%;
+    z-index: 2;
+}
+
+.gradetype-count-box {
+    display: flex;
+    font-size: 34rpx;
+    height: 90rpx;
+    justify-content: space-around;
+    line-height: 90rpx;
+    margin: 20rpx auto;
+    width: 98%;
+}
+
+.grade-box,.timu-count {
+    background-color: #318494;
+    border-radius: 10rpx;
+    color: #fff;
+    text-align: center;
+    width: 46%;
+}
+
+.timus-box {
+    background-color: #3abccc;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.timuitem {
+    background: url(https://www.xiaoxuestudy.com/kousuan_v1/image/timuitem.jpg) no-repeat;
+    background-position: 50%;
+    background-size: 100% 100%;
+    color: #048290;
+    height: 162rpx;
+    margin: 6px auto 6px 3%;
+    text-align: center;
+    width: 94%;
+}
+
+.timu-name {
+    font-size: 34rpx;
+    font-weight: 700;
+}
+
+.timu-demo {
+    font-size: 28rpx;
+}
+
+.stars {
+    display: flex;
+    justify-content: center;
+    padding-top: 20rpx;
+}
+
+.itemstar {
+    height: 32rpx;
+    margin: 0 4rpx;
+    width: 32rpx;
+}
+
+.konghang-area {
+    background-color: #3abccc;
+    height: 40rpx;
+    width: 100%;
+}
+
+.mask {
+    background: #000;
+    height: 100vh;
+    left: 0;
+    opacity: .5;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 10;
+}
+
+.page-box-grade-mask {
+    background-color: #fff;
+    border-radius: 20rpx;
+    bottom: 0;
+    height: 1100rpx;
+    left: 0;
+    position: fixed;
+    z-index: 99;
+}
+
+.grade-dialog-box {
+    font-size: 28rpx;
+    margin: 0 20rpx;
+}
+
+.close-out-box {
+    display: flex;
+    margin-top: 20rpx;
+}
+
+.close-left-space {
+    width: 670rpx;
+}
+
+.close-box {
+    display: flex;
+    height: 60rpx;
+    justify-content: flex-end;
+    line-height: 60rpx;
+    width: 80rpx;
+}
+
+.close-left {
+    width: 20rpx;
+}
+
+.close-center {
+    font-size: 40rpx;
+    text-align: right;
+    width: 40rpx;
+}
+
+.close-right {
+    text-align: right;
+    width: 20rpx;
+}
+
+.tip-label {
+    height: 50rpx;
+    line-height: 50rpx;
+    margin-bottom: 10rpx;
+    margin-left: 10rpx;
+    text-align: left;
+}
+
+.buttons-box {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.button-item {
+    background-color: #f7f7f7;
+    border-radius: 10rpx;
+    color: #000;
+    font-size: 28rpx;
+    height: 80rpx;
+    line-height: 80rpx;
+    margin: 16rpx 0;
+    text-align: center;
+    width: 200rpx;
+}
+
+.fengexian1 {
+    border: 1rpx solid #e7e7e7;
+    margin: 20rpx 0;
+}
+
+.page-box-tiliang-mask {
+    background-color: #fff;
+    bottom: 0;
+    height: 780rpx;
+    left: 0;
+    position: fixed;
+    z-index: 99;
+}
+
+.tiliang-box {
+    font-size: 28rpx;
+    margin: 0 20rpx;
+}
+
+.buttons-box-tiliang {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.tip-label-mode {
+    background-color: #f7f7f7;
+    border-radius: 16rpx;
+    color: #4c4c4c;
+    font-size: 24rpx;
+    height: 60rpx;
+    line-height: 60rpx;
+    margin-bottom: 26rpx;
+    margin-top: 20rpx;
+    padding-left: 10rpx;
+    text-align: left;
+}
+
+.tiliang-button-item {
+    background-color: #f7f7f7;
+    border-radius: 10rpx;
+    color: #000;
+    height: 80rpx;
+    line-height: 80rpx;
+    margin: 16rpx 0;
+    text-align: center;
+    width: 200rpx;
+}

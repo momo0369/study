@@ -1,0 +1,38 @@
+<view class="jiangzhuang-image-box">
+    <image mode="widthFix" src="{{url}}"></image>
+</view>
+<button class="share-button" openType="share">
+    <view class="button-box">
+        <view class="button-share">分享给朋友</view>
+    </view>
+</button>
+<view class="button-box">
+    <view bindtap="btnXiangce" class="button-xiangce">保存到相册</view>
+</view>
+<view class="button-box" wx:if="{{fromshare==0}}">
+    <view bindtap="btnShowNicknameDialog" class="button-xiangce">修改昵称</view>
+</view>
+<view class="button-box" wx:if="{{fromshare==0&&xlname!='24点'}}">
+    <view bindtap="btnAgain" class="button-xiangce">再来一次</view>
+</view>
+<view class="button-box">
+    <view bindtap="btnHome" class="button-xiangce">返回首页</view>
+</view>
+<view bindtap="btnMask" catchtouchmove="preventTouchMove" class="mask" wx:if="{{showMask}}"></view>
+<view catchtouchmove="preventTouchMove" class="nickname-setting-mask" wx:if="{{showNicknameDialog}}">
+    <view class="close-out-box">
+        <view class="close-left-space"></view>
+        <view bindtap="btnCloseDialog" class="close-box">
+            <view class="close-left"></view>
+            <view class="close-center">
+                <text class="iconfont icon-close" style="font-size: 46rpx;"></text>
+            </view>
+            <view class="close-right"></view>
+        </view>
+    </view>
+    <view class="page-tip-label">说明：昵称要求是汉字、英语字母或数字组成，修改成功后，将在下次练习生效。</view>
+    <view class="input-button-box">
+        <input bindinput="handleChange" placeholder="请输入昵称" type="nickname" value="{{nickname}}"></input>
+        <view bindtap="btnConfirmNickname" class="confirm-button-item" style="color: {{button_forecolor}};background-color: {{button_backcolor}};border-color: {{button_bordercolor}};">确定</view>
+    </view>
+</view>

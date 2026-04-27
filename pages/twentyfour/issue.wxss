@@ -1,0 +1,31 @@
+.searchtextinput {
+    background: #fff;
+    border: 1px solid #3abccc;
+    border-radius: 3%;
+    font-size: 20px;
+    height: 50px;
+    line-height: 50px;
+}
+
+.container {
+    background: #ededed;
+    padding-top: 40%;
+    width: 100%;
+}
+
+.item {
+    line-height: 2;
+    margin: 30px;
+}
+
+button {
+    color: #fff;
+    font-size: 20px;
+    height: 100rpx;
+    line-height: 100rpx;
+    margin-top: 5px;
+}
+
+.searchbtn,button {
+    background-color: #3abccc;
+}

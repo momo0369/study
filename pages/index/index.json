@@ -1,0 +1,8 @@
+{
+    "navigationBarTitleText": "口算天天练",
+    "navigationBarBackgroundColor": "#3abccc",
+    "backgroundColor": "#3abccc",
+    "disableScroll": true,
+    "navigationBarTextStyle": "white",
+    "usingComponents": {}
+}

@@ -1,0 +1,220 @@
+.operator {
+    font-size: 40px;
+    height: 90px;
+    line-height: 80px;
+    text-align: center;
+}
+
+.fenshu {
+    display: flex;
+    margin: 0 5px;
+}
+
+.fenint {
+    height: 90px;
+    line-height: 80px;
+}
+
+.fenint,.fenshupart {
+    text-align: center;
+}
+
+.fenzi {
+    border: 1px green;
+    height: 40px;
+    line-height: 40px;
+}
+
+.fenshuline {
+    border-bottom: 1px solid #fff;
+    line-height: 10px;
+    margin: 2px;
+    padding: 0;
+    width: 100%;
+}
+
+.fenmu {
+    border: 1px blue;
+    height: 40px;
+    line-height: 40px;
+}
+
+.fenshuanswer {
+    margin-left: 8px;
+    text-align: center;
+}
+
+.fenshuanswer .fenzipart {
+    border: 1px dashed #fff;
+    display: flex;
+    height: 50px;
+    justify-content: center;
+    width: 70px;
+}
+
+.answerint.sint,.fenshuanswer .fenmupart.sfenmu,.fenshuanswer .fenzipart.sfenzi {
+    background: #3abccc;
+}
+
+.fenshuanswer .fenmupart {
+    border: 1px dashed #fff;
+    height: 50px;
+    width: 70px;
+}
+
+.fenshuanswer .fenshuline {
+    margin: 10px 2px 2px;
+    position: relative;
+    top: -4px;
+}
+
+.answerint {
+    border: 1px dashed #fff;
+    margin-left: 10rpx;
+    padding: 8px;
+    width: 30px;
+}
+
+page {
+    height: 100%;
+    position: relative;
+}
+
+.expression {
+    padding: 0 30rpx;
+}
+
+.progress {
+    height: 20px;
+    margin-left: 10%;
+    margin-top: 5px;
+    width: 80%;
+}
+
+.maintop {
+    align-items: center;
+    background: url("https://www.xiaoxuestudy.com/kousuan_v1/image/main_top.png");
+    background-size: 100% 100%;
+    color: #fff;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    font-size: 30px;
+    justify-content: center;
+    padding: 20px 0;
+    width: 100%;
+}
+
+.stagecommon {
+    height: 70px;
+}
+
+.stageerror {
+    background: url("https://www.xiaoxuestudy.com/kousuan_v1/image/jiucuo.png") no-repeat;
+    background-size: contain;
+    height: 70px;
+    width: 100px;
+}
+
+.inputAnswer {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.answerico {
+    align-self: center;
+    height: 32px;
+    margin-left: 5px;
+    width: 120px;
+}
+
+.timu {
+    display: flex;
+    flex: 1;
+    flex-direction: row;
+    justify-content: center;
+}
+
+.inputAnswer,.timu {
+    align-items: center;
+}
+
+.inputAnswer {
+    height: 80px;
+}
+
+.mainc {
+    background: url("https://www.xiaoxuestudy.com/kousuan_v1/image/main_bottom.png");
+    flex-direction: column-reverse;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.btnGroup,.mainc {
+    display: flex;
+}
+
+.btnGroup {
+    flex-direction: column;
+    padding: 2px;
+}
+
+.item {
+    align-self: center;
+    background-position: 50%;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    margin: 2px;
+    width: 80%;
+}
+
+.gtltwraper {
+    display: flex;
+    margin-left: 10%;
+    width: 80%;
+}
+
+.layout-bottom {
+    margin-bottom: 10px;
+}
+
+.show {
+    display: block;
+}
+
+.hide {
+    display: none;
+}
+
+.item0-0 {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/0-0.png");
+}
+
+.item0-0:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/0-0_active.png");
+}
+
+.itemgt {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/bjd.png");
+}
+
+.itemgt:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/bjd_active.png");
+}
+
+.itemlt {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/bjx.png");
+}
+
+.itemlt:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/bjx_active.png");
+}
+
+.itemeq {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/bjde.png");
+}
+
+.itemeq:active {
+    background-image: url("https://www.xiaoxuestudy.com/kousuan_v1/image/bjde_active.png");
+}

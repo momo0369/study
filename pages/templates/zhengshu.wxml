@@ -1,0 +1,3 @@
+<template name="zhengshu">
+    <view class="expression">{{timu}}</view>
+</template>

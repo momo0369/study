@@ -1,0 +1,24 @@
+<view class="mainc">
+    <view class="layout-bottom">
+        <view class="btnGroup">
+            <view bindtap="btnAnswer" class="item item0-0" style="height:{{btnHeight}}px"></view>
+        </view>
+        <view class="btnGroup" wx:for="{{danweis}}" wx:for-index="idx" wx:for-item="danwei" wx:key="nouse">
+            <view bindtap="btnBtn" class="item item{{danwei.dlid}}-{{danwei.xlid}}" data-disp="{{danwei.dwname}}" data-id="{{danwei.dlid}}|{{danwei.xlid}}" style="height:{{btnHeight}}px"></view>
+        </view>
+    </view>
+    <view class="progress {{progressid}}"></view>
+    <view class="maintop">
+        <view class="stageerror {{stageHidden}}"></view>
+        <view class="timu" style="font-weight:bolder;font-size:{{timusize}} rpx;font-family:{{timufamily}};">
+            <view class="expression">{{currentTimuObj.timu}}</view>
+        </view>
+        <view class="inputAnswer">
+            <view style="display:flex;font-weight:bolder;font-size:{{daansize}} rpx;font-family:{{daanfamily}}">
+                <view>{{candidateAnswer}}</view>
+                <image class="answerico {{inputRightFlagHidden}}" src="../../img/answer_right.png"></image>
+                <image class="answerico {{inputWrongFlagHidden}}" src="../../img/answer_wrong.png"></image>
+            </view>
+        </view>
+    </view>
+</view>

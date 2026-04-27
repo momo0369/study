@@ -1,0 +1,50 @@
+<view class="page-box">
+    <view class="select-fixed-area">
+        <view class="gradetype-count-box">
+            <view bindtap="btnShowGradeDialog" class="gradeBtn">{{typeArr[selectedId]}}<text class="iconfont icon-xiala" style="font-size: 36rpx;"></text>
+            </view>
+        </view>
+    </view>
+    <view class="replace-fixed-area"></view>
+    <view class="timus-box">
+        <view bindtap="btnTimuItem" class="timuitem" data-daanfamily="{{item.daanfamily}}" data-daansize="{{item.daansize}}" data-dlid="{{item.dlid}}" data-jiqiao="{{item.jiqiao}}" data-manual="{{item.ismanual}}" data-page="{{item.page}}" data-printstyle="{{item.printStyle}}" data-timufamily="{{item.timufamily}}" data-timusize="{{item.timusize}}" data-xlid="{{item.xlid}}" data-xlname="{{item.xlname}}" wx:for="{{timulist}}" wx:key="item">
+            <view class="stars">
+                <block wx:if="{{stars_arr[index].stars>0}}">
+                    <image class="itemstar" src="/img/star_yes.jpg" wx:if="{{idx<stars_arr[index].stars}}" wx:for="{{5}}" wx:for-index="idx" wx:for-item="star-item" wx:key="k0"></image>
+                </block>
+                <image class="itemstar" src="/img/star_no.jpg" wx:if="{{idx<5-stars_arr[index].stars}}" wx:for="{{5}}" wx:for-index="idx" wx:for-item="star-item" wx:key="k1"></image>
+            </view>
+            <view class="timu-name">{{item.xlname}}</view>
+            <view class="timu-demo">{{item.demo}}</view>
+        </view>
+    </view>
+    <view class="konghang-area"></view>
+</view>
+<view data-dialogid bindtap="btnMask" catchtouchmove="preventTouchMove" class="mask" wx:if="{{showMask}}"></view>
+<view catchtouchmove="preventTouchMove" class="page-box-grade-mask" wx:if="{{showGradeDialog}}">
+    <view class="close-out-box">
+        <view class="close-left-space"></view>
+        <view bindtap="btnCloseDialog" class="close-box" data-dialogid="1">
+            <view class="close-left"></view>
+            <view class="close-center">
+                <text class="iconfont icon-close" style="font-size: 46rpx;"></text>
+            </view>
+            <view class="close-right"></view>
+        </view>
+    </view>
+    <view class="grade-dialog-box">
+        <view class="tip-label">请选择年级：</view>
+        <view class="buttons-box">
+            <view class="buttons-box">
+                <view bindtap="btnGrade" class="button-item" data-byid="1" data-grade="{{index}}" style="background-color:{{bygrade_back_color[index]}};color: {{bygrade_front_color[index]}};" wx:for="{{6}}" wx:key="nouse">{{bygrade_title_arr[index]}}</view>
+            </view>
+        </view>
+        <view class="fengexian1"></view>
+        <view class="tip-label">或选择题型：</view>
+        <view class="buttons-box">
+            <view bindtap="btnGrade" class="button-item" data-byid="2" data-dlid="{{index}}" style="background-color:{{bytixing_back_color[index]}};color: {{bytixing_front_color[index]}};" wx:for="{{10}}" wx:key="nouse">{{bytixing_title_arr[index]}}</view>
+            <view class="button-item" style="background-color: #fff;"></view>
+            <view class="button-item" style="background-color: #fff;"></view>
+        </view>
+    </view>
+</view>

@@ -1,0 +1,119 @@
+<view class="container">
+    <view class="progress">
+        <view class="proitem" style="background-image:url(https://www.xiaoxuestudy.com/kousuan_v1/image/24_pro_active.jpg)" wx:if="{{indx<currentProgress}}" wx:for="{{[1,2,3,4,5]}}" wx:for-index="indx" wx:key="nouse"></view>
+        <view class="proitem" style="background-image:url(https://www.xiaoxuestudy.com/kousuan_v1/image/24_pro.jpg)" wx:if="{{indx<5-currentProgress}}" wx:for="{{[1,2,3,4,5]}}" wx:for-index="indx" wx:key="nouse"></view>
+    </view>
+    <view class="replay">
+        <view class="replay-left-part">
+            <view bindtap="btnplay" class="btn btnplay"></view>
+        </view>
+        <view class="replay-right-part">
+            <view bindtap="btndaan" class="btn btnanswer"></view>
+            <view bindtap="btnreplay" class="btn btnreplay"></view>
+        </view>
+    </view>
+    <view style="display:flex;flex-direction:column;height:100%;padding-top:{{numbersTop}}%;">
+        <view class="numbers">
+            <view bindtap="btnNum" class="btn {{currentTimuPageObject[0].selected}} btn1" data-index="0" data-value="{{currentTimuPageObject[0].value}}" style="visibility:{{currentTimuPageObject[0].visibility}};height:{{btnHeight}}rpx;line-height:{{btnHeight-15}}rpx;font-size:{{currentTimuPageObject[0].fontsize}}rem">{{currentTimuPageObject[0].disp}} </view>
+            <view bindtap="btnNum" class="btn {{currentTimuPageObject[1].selected}} btn2" data-index="1" data-value="{{currentTimuPageObject[1].value}}" style="visibility:{{currentTimuPageObject[1].visibility}};height:{{btnHeight}}rpx;line-height:{{btnHeight-15}}rpx;font-size:{{currentTimuPageObject[1].fontsize}}rem">{{currentTimuPageObject[1].disp}} </view>
+            <view bindtap="btnNum" class="btn {{currentTimuPageObject[2].selected}} btn3" data-index="2" data-value="{{currentTimuPageObject[2].value}}" style="visibility:{{currentTimuPageObject[2].visibility}};height:{{btnHeight}}rpx;line-height:{{btnHeight-15}}rpx;font-size:{{currentTimuPageObject[2].fontsize}}rem">{{currentTimuPageObject[2].disp}} </view>
+            <view bindtap="btnNum" class="btn {{currentTimuPageObject[3].selected}} btn4" data-index="3" data-value="{{currentTimuPageObject[3].value}}" style="visibility:{{currentTimuPageObject[3].visibility}};height:{{btnHeight}}rpx;line-height:{{btnHeight-15}}rpx;font-size:{{currentTimuPageObject[3].fontsize}}rem">{{currentTimuPageObject[3].disp}} </view>
+        </view>
+        <view class="operators">
+            <view bindtap="btnplus" class="btn {{operatorStatus[0]}} btnplus" style="height:{{btnHeight*0.7}}rpx"></view>
+            <view bindtap="btnminus" class="btn {{operatorStatus[1]}} btnminus" style="height:{{btnHeight*0.7}}rpx"></view>
+            <view bindtap="btnmulti" class="btn {{operatorStatus[2]}} btnmulti" style="height:{{btnHeight*0.7}}rpx"></view>
+            <view bindtap="btndivide" class="btn {{operatorStatus[3]}} btndivide" style="height:{{btnHeight*0.7}}rpx"></view>
+        </view>
+        <view class="btnGroup">
+            <view bindtap="btnShowDifficultyDialog" class="btn btndifficulty" style="height:{{btnHeight*0.5}}rpx"></view>
+            <view bindtap="btnhuanyihuan" class="btn btnhuanyihuan" style="height:{{btnHeight*0.5}}rpx"></view>
+            <view bindtap="btnShowItemDialog" class="btn btnitem" style="height:{{btnHeight*0.5}}rpx"></view>
+            <button bindtap="btnshare" class="btn btnshare" openType="share" style="height:{{btnHeight*0.5}}rpx"></button>
+        </view>
+    </view>
+    <modal cancelText="" class="mask" confirmText="" style="display:{{maskStatus}};">
+        <view style="font-size:1rem;height:100px;margin-top:10%;text-align:center;color:black;">
+            <view>前{{currentProgress}}题，您共用时<text style="color:#3abccc;font-weight:bold;">{{stageCost}}</text>秒,比<text style="color:#3abccc;font-weight:bold;">{{stagePercent}}%</text>的用户算得快！</view>
+        </view>
+    </modal>
+    <modal bindtap="radiotap" cancelText="" class="mask" confirmText="" style="display:{{modeMaskStatus}};">
+        <view style="font-size:1rem;height:100px;padding:5% 0;text-align:left;z-index:999;">
+            <radio-group bindchange="radioChange" class="radio-group">
+                <view style="margin:15px 10px;">
+                    <label class="radio">
+                        <radio checked="{{normalCheck}}" data-value="0" id="r1" value="0"></radio> 正常模式：4个数均小于10 </label>
+                </view>
+                <view style="margin:15px 10px;">
+                    <label class="radio">
+                        <radio checked="{{hardCheck}}" data-value="1" id="r2" value="1"></radio> 挑战模式：至少有一个数不小于10 </label>
+                </view>
+            </radio-group>
+        </view>
+    </modal>
+    <view class="videomask" style="display:{{videomaskStatus}};">
+        <video autoplay="true" bindended="" customCache="false" src="{{helpvideoUrl}}"></video>
+    </view>
+    <view bindtap="btnMask" catchtouchmove="preventTouchMove" class="mask" data-dialogid="1" wx:if="{{showMask}}"></view>
+    <view catchtouchmove="preventTouchMove" class="page-box-difficulty-mask" wx:if="{{showDifficultyDialog}}">
+        <view class=" close-out-box">
+            <view class="close-left-space"></view>
+            <view bindtap="btnCloseDialog" class="close-box" data-dialogid="1">
+                <view class="close-left"></view>
+                <view class="close-center">
+                    <text class="iconfont icon-close" style="font-size: 46rpx;"></text>
+                </view>
+                <view class="close-right"></view>
+            </view>
+        </view>
+        <view class="difficulty-box">
+            <view class="tip-label">1.难度随机，题目中既有难题也有容易题</view>
+            <view class="buttons-box-difficulty">
+                <view bindtap="btnDifficultyItem" class="dialog-button-item-number-range" data-byid="1" data-id="{{index}}" style="background-color:{{byscope_back_color[index]}};color: {{byscope_front_color[index]}};" wx:for="{{2}}" wx:key="nouse">{{byscope_title_arr[index]}}</view>
+            </view>
+            <view class="fengexian1"></view>
+            <view bindtap="btnHelpRateTips" class="tip-label">2.按求助率出题<text class="iconfont icon-dengpao" style="color: #ffc300;font-size: 28rpx;padding-right: 6rpx;height: 60rpx;line-height: 60rpx;"></text>求助率越高，题目越难</view>
+            <view class="buttons-box-difficulty">
+                <view bindtap="btnDifficultyItem" class="dialog-button-item" data-byid="2" data-id="{{index}}" style="background-color:{{byhelprate_back_color[index]}};color: {{byhelprate_front_color[index]}};" wx:for="{{6}}" wx:key="nouse">{{byhelprate_title_arr[index]}}</view>
+            </view>
+        </view>
+    </view>
+    <view catchtouchmove="preventTouchMove" class="page-box-item-mask" wx:if="{{showItemDialog}}">
+        <view class=" close-out-box">
+            <view class="close-left-space"></view>
+            <view bindtap="btnCloseDialog" class="close-box" data-dialogid="2">
+                <view class="close-left"></view>
+                <view class="close-center">
+                    <text class="iconfont icon-close" style="font-size: 46rpx;"></text>
+                </view>
+                <view class="close-right"></view>
+            </view>
+        </view>
+        <view class="difficulty-box">
+            <view class="tip-label">请选择类型</view>
+            <view class="buttons-box-difficulty">
+                <view bindtap="btnSpecialItem" class="dialog-button-item" data-id="{{index}}" style="background-color:{{byitem_back_color[index]}};color: {{byitem_front_color[index]}};" wx:for="{{9}}" wx:key="nouse">{{byitem_title_arr[index]}}</view>
+            </view>
+        </view>
+    </view>
+    <view class="bottom-nav">
+        <view class="bottom-nav-link">
+            <block wx:if="{{miniprogramId==1}}">
+                <text bind:tap="btnWolaichuti">自主出题</text>
+                <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+                <text bind:tap="btnplay">视频教程</text>
+            </block>
+            <block wx:if="{{miniprogramId==2}}">
+                <text bind:tap="btnWolaichuti">自主出题</text>
+                <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+                <text bind:tap="btnKousuan">口算天天练</text>
+                <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+                <text bind:tap="btnLearntime">认识时间</text>
+                <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+                <text bind:tap="btnHanoi">汉诺塔</text>
+                <text style="margin-left: 6rpx;margin-right: 6rpx;">|</text>
+                <text bind:tap="btnShengzici">生字词</text>
+            </block>
+        </view>
+    </view>
+</view>

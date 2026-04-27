@@ -1,0 +1,498 @@
+.doc-title {
+    color: #4c4c4c;
+    font-size: 30rpx;
+    margin: 16rpx 0rpx 0rpx;
+    text-align: center;
+    width: 100%;
+}
+
+.name-date-label {
+    color: #4c4c4c;
+    display: flex;
+    font-size: 28rpx;
+    justify-content: flex-end;
+    margin: 10rpx 0rpx;
+}
+
+.date-label,.name-label {
+    width: 150rpx;
+}
+
+.fengexian {
+    border-top: 2rpx solid #777;
+    margin: 0 4%;
+}
+
+.timus-box {
+    background-color: #fff;
+    color: #4c4c4c;
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 28rpx;
+    justify-content: initial;
+    margin: 10rpx 5%;
+}
+
+.timu {
+    margin: 6rpx 0rpx 100rpx;
+    padding: 5rpx 0rpx;
+    width: 166rpx;
+}
+
+.fill-timu,.timu {
+    letter-spacing: 2rpx;
+}
+
+.fill-timu {
+    margin: 4rpx 0rpx 4rpx 10rpx;
+    width: 210rpx;
+}
+
+.shushi-timu-box {
+    display: flex;
+    flex-direction: column;
+    font-size: 28rpx;
+    margin: 20rpx 0rpx 30rpx 24rpx;
+    width: 200rpx;
+}
+
+.shushi-timu-box .timu-content {
+    letter-spacing: 1rpx;
+    margin: 0rpx 10rpx;
+    width: 200rpx;
+}
+
+.shushi-small-box {
+    margin-left: 10rpx;
+    text-align: right;
+    width: 160rpx;
+}
+
+.num1 {
+    width: 88rpx;
+}
+
+.row2 {
+    display: flex;
+}
+
+.operator-value {
+    text-align: right;
+    width: 18rpx;
+}
+
+.num2 {
+    width: 70rpx;
+}
+
+.line {
+    border-top: 2rpx solid #000;
+    width: 110rpx;
+}
+
+.shushi-chufa-timu-box {
+    display: flex;
+    flex-direction: column;
+    margin: 20rpx 0 20rpx 20rpx;
+    width: 200rpx;
+}
+
+.chufa-timu-content {
+    letter-spacing: 4rpx;
+    margin-left: 10rpx;
+    text-align: center;
+    width: 130rpx;
+}
+
+.chushi-box {
+    display: flex;
+    margin-top: 10rpx;
+    text-align: right;
+    width: 160rpx;
+}
+
+.chushi-num1 {
+    border-left: 2rpx solid #000;
+    border-top: 2rpx solid #000;
+    text-align: center;
+    width: 70rpx;
+}
+
+.chushi-num2 {
+    padding-right: 10rpx;
+    text-align: right;
+    width: 50rpx;
+}
+
+.mask {
+    background: #000;
+    height: 100vh;
+    left: 0;
+    opacity: .5;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 2;
+}
+
+.page-box-download-mask {
+    background-color: #fff;
+    border-radius: 20rpx;
+    bottom: 0;
+    height: 550rpx;
+    left: 0;
+    position: fixed;
+    z-index: 99;
+}
+
+.download-box {
+    font-size: 28rpx;
+    margin: 0 20rpx;
+}
+
+.tip-label {
+    height: 50rpx;
+    line-height: 50rpx;
+    margin-bottom: 10rpx;
+    margin-left: 10rpx;
+    text-align: left;
+}
+
+.buttons-box {
+    display: flex;
+    justify-content: space-between;
+}
+
+.button-item,.button-item-download {
+    background-color: #f7f7f7;
+    border-radius: 10rpx;
+    color: #000;
+    height: 80rpx;
+    line-height: 80rpx;
+    text-align: center;
+    width: 200rpx;
+}
+
+.button-item-download {
+    margin: 10rpx 0rpx;
+    position: relative;
+}
+
+.fengexian1 {
+    border: 1rpx solid #e7e7e7;
+    margin: 20rpx 0;
+}
+
+.timu-fenshu,.timus-fenshu {
+    display: flex;
+}
+
+.timu-fenshu {
+    align-items: center;
+    flex-direction: row;
+    font-size: 28rpx;
+    width: 220rpx;
+}
+
+.fenshu {
+    display: flex;
+}
+
+.fenint {
+    height: 82rpx;
+    line-height: 82rpx;
+    text-align: center;
+}
+
+.fenshupart {
+    flex: display;
+    flex-direction: column;
+    height: 80rpx;
+    justify-content: center;
+    text-align: center;
+    width: 32rpx;
+}
+
+.fenmu,.fenzi {
+    height: 40rpx;
+    line-height: 40rpx;
+}
+
+.fenshuline {
+    border: 1rpx solid #4c4c4c;
+}
+
+.operator {
+    height: 82rpx;
+    line-height: 82rpx;
+    text-align: center;
+    width: 30rpx;
+}
+
+.page-box-setting-mask {
+    background-color: #fff;
+    border-radius: 20rpx;
+    bottom: 0;
+    height: 720rpx;
+    left: 0;
+    position: fixed;
+    z-index: 99;
+}
+
+.close-out-box {
+    display: flex;
+    margin-top: 20rpx;
+}
+
+.close-left-space {
+    width: 670rpx;
+}
+
+.close-box {
+    display: flex;
+    height: 60rpx;
+    justify-content: flex-end;
+    line-height: 60rpx;
+    width: 80rpx;
+}
+
+.close-left {
+    width: 20rpx;
+}
+
+.close-center {
+    font-size: 40rpx;
+    text-align: right;
+    width: 40rpx;
+}
+
+.close-right {
+    text-align: right;
+    width: 20rpx;
+}
+
+.page-tip-label {
+    font-size: 28rpx;
+    height: 50rpx;
+    line-height: 50rpx;
+    margin-bottom: 10rpx;
+    margin-left: 10rpx;
+    margin-top: 20rpx;
+    text-align: left;
+}
+
+.setting-box {
+    font-size: 28rpx;
+    margin: 0 20rpx;
+}
+
+.input-button-box {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 2rpx;
+}
+
+.reset-button-item {
+    background-color: #f7f7f7;
+    border: 1rpx solid #f7f7f7;
+    border-radius: 10rpx;
+    text-align: center;
+    width: 180rpx;
+}
+
+.reset-button-item,input {
+    color: #000;
+    height: 58rpx;
+    line-height: 58rpx;
+}
+
+input {
+    border: 1rpx solid #bbb;
+    border-radius: 10rpx;
+    caret-color: #000;
+    display: inline-block;
+    margin-left: 10rpx;
+    padding-left: 10rpx;
+    text-align: left;
+    vertical-align: middle;
+    width: 480rpx;
+}
+
+.page-box-tiliang-mask {
+    background-color: #fff;
+    border-radius: 20rpx;
+    bottom: 0;
+    height: 860rpx;
+    left: 0;
+    position: fixed;
+    z-index: 99;
+}
+
+.tiliang-box {
+    font-size: 28rpx;
+    margin: 0 20rpx;
+}
+
+.buttons-box-tiliang {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.tip-label-mode {
+    background-color: #f7f7f7;
+    border-radius: 16rpx;
+    color: #4c4c4c;
+    font-size: 24rpx;
+    height: 60rpx;
+    line-height: 60rpx;
+    margin-bottom: 26rpx;
+    margin-top: 20rpx;
+    padding-left: 10rpx;
+    text-align: left;
+}
+
+.tiliang-button-item {
+    background-color: #f7f7f7;
+    border-radius: 10rpx;
+    color: #000;
+    height: 80rpx;
+    line-height: 80rpx;
+    margin: 16rpx 0;
+    text-align: center;
+    width: 200rpx;
+}
+
+.bottom-nav {
+    background-color: #f7f7f7;
+    bottom: 0;
+    display: flex;
+    font-size: 26rpx;
+    height: 100rpx;
+    left: 0;
+    padding-bottom: 30rpx;
+    padding-top: 10rpx;
+    position: fixed;
+    width: 100%;
+}
+
+.bottom-nav .icon-text-group {
+    color: #4c4c4c;
+    flex: 1;
+    padding-top: 4rpx;
+    text-align: center;
+}
+
+.icon-text-group .text-box {
+    height: 38rpx;
+    line-height: 38rpx;
+    padding-top: 4rpx;
+}
+
+.bottom-nav .icon-text-group-download {
+    color: #4c4c4c;
+    flex: 1;
+    padding-top: 4rpx;
+    position: relative;
+    text-align: center;
+}
+
+.hongdian {
+    height: 14rpx;
+    right: 58rpx;
+    top: 3rpx;
+    width: 14rpx;
+}
+
+.hongdian,.hongdian-button-item {
+    background-color: red;
+    border-radius: 50%;
+    position: absolute;
+}
+
+.hongdian-button-item {
+    height: 12rpx;
+    right: 26rpx;
+    top: 16rpx;
+    width: 12rpx;
+}
+
+.icon-text-group-download .text-box {
+    height: 38rpx;
+    line-height: 38rpx;
+    padding-top: 4rpx;
+}
+
+.share-button {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.share-button:after {
+    border: none;
+}
+
+button {
+    color: #4c4c4c;
+    font-size: 26rpx;
+    height: 100rpx;
+}
+
+.bottom-fixed-buttons {
+    background-color: #fff;
+    border-radius: 20rpx;
+    border-top: 2rpx solid #f7f7f7;
+    bottom: 129rpx;
+    color: #4c4c4c;
+    display: flex;
+    flex-wrap: nowrap;
+    font-size: 30rpx;
+    height: 140rpx;
+    justify-content: space-between;
+    margin: 10rpx auto;
+    padding-top: 20rpx;
+    position: fixed;
+    width: 100%;
+    z-index: 2;
+}
+
+.fixed-button {
+    background-color: #f7f7f7;
+    border: 1rpx solid #ccc;
+    border-radius: 20rpx;
+    color: #4c4c4c;
+    font-size: 28rpx;
+    height: 70rpx;
+    line-height: 70rpx;
+    margin: 14rpx 30rpx;
+    text-align: center;
+    width: 170rpx;
+}
+
+.page-box-shushi-mask {
+    background-color: #fff;
+    border-radius: 20rpx;
+    bottom: 0;
+    left: 0;
+    position: fixed;
+    z-index: 99;
+}
+
+.buttons-box-shushi {
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 28rpx;
+    justify-content: center;
+    margin-bottom: 50rpx;
+}
+
+.button-item-shushi {
+    background-color: #f7f7f7;
+    border-radius: 16rpx;
+    color: #000;
+    height: 80rpx;
+    line-height: 80rpx;
+    margin: 20rpx 0;
+    text-align: center;
+    width: 600rpx;
+}

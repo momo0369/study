@@ -1,0 +1,31 @@
+<view class="bgwin" style="height:100%;display:flex;">
+    <view class="failout animated infinite rotatePositive"></view>
+    <view class="failin  animated infinite rotateNegtive"></view>
+    <view class="scoreimgs">
+        <view class="imgstar scoreimg" style="  background:url('https://www.xiaoxuestudy.com/kousuan_v1/image/star{{stars}}.png') no-repeat;         background-size:contain;  background-position: 50% 50%"></view>
+        <view class="imgfenshu">{{score}}</view>
+        <view class="imgdesc scoreimg"></view>
+        <view class="scoredesc">本次24点您用时{{timecost}}秒。</view>
+    </view>
+    <view class="choicebtns">
+        <view bindtap="btnagain" class="btnagain btn"></view>
+        <view bindtap="btnHome" class="btnHome btn" wx:if="{{miniprogramId==1}}"></view>
+        <view bindtap="btnJiangZhuang" class="btnshare btn"></view>
+    </view>
+    <modal bindtap="closeMask" cancelText="" class="mask" confirmText="" style="display:{{maskStatus}};">
+        <view> 根据您的答题速度打分，规则如下： </view>
+        <view> 五星：超过{{configs[0]*100}}%及以上用户 </view>
+        <view> 四星：超过{{configs[1]*100}}%及以上用户 </view>
+        <view> 三星：超过{{configs[2]*100}}%及以上用户 </view>
+        <view> 两星：超过{{configs[3]*100}}%及以上用户 </view>
+        <view> 一星：低于{{configs[3]*100}}% </view>
+    </modal>
+    <view catchtouchmove="preventTouchMove" class="mask" wx:if="{{showMask}}"></view>
+    <view catchtouchmove="preventTouchMove" class="nickname-setting-mask" wx:if="{{showNicknameDialog}}">
+        <view class="page-tip-label">第一次使用需要设置用户昵称，用于奖状展示</view>
+        <view class="input-button-box">
+            <input bindinput="handleChange" placeholder="请输入昵称" type="nickname"></input>
+            <view bindtap="btnConfirmNickname" class="confirm-button-item" style="color: {{button_forecolor}};background-color: {{button_backcolor}};border-color: {{button_bordercolor}};">确定</view>
+        </view>
+    </view>
+</view>
