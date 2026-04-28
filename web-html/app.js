@@ -2068,4 +2068,191 @@
     if (Number.isInteger(num)) return String(num);
     return num.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
   }
+
+  document.addEventListener("click", interceptPrintClicks, true);
+
+  function renderLogin() {
+    const mode = state.auth.mode === "register" ? "register" : "login";
+    return `
+      <section class="card login-card">
+        <div class="section-head">
+          <h2>${mode === "register" ? "注册" : "登录"}</h2>
+        </div>
+        <div class="stack login-form">
+          <p class="muted login-subtitle">${mode === "register" ? "注册后可以在线练习，打印权限需开通。" : "请输入账号和密码进入系统。"}</p>
+          <label>账号
+            <input data-auth-field="username" value="${escapeAttr(state.auth.form.username)}" placeholder="字母/数字/下划线" />
+          </label>
+          <label>密码
+            <input type="password" data-auth-field="password" value="${escapeAttr(state.auth.form.password)}" placeholder="至少6位" />
+          </label>
+          ${state.auth.error ? `<div class="tip" style="color:#d84b5d">${escapeHtml(state.auth.error)}</div>` : ""}
+          <div class="actions login-actions">
+            <button class="btn primary" data-auth-action="${mode}">${mode === "register" ? "注册并登录" : "登录"}</button>
+            <button class="btn" data-auth-action="switch-mode">${mode === "register" ? "已有账号，去登录" : "没有账号，去注册"}</button>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  async function handleAuthAction(action) {
+    if (action === "switch-mode") {
+      state.auth.mode = state.auth.mode === "register" ? "login" : "register";
+      state.auth.error = "";
+      render();
+      return;
+    }
+    if (action === "logout") {
+      await fetch("/api/auth/logout", { method: "POST" });
+      state.auth.user = null;
+      state.auth.checked = true;
+      routeTo("login");
+      return;
+    }
+    if (action === "login" || action === "register") {
+      try {
+        const response = await fetch(`/api/auth/${action}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(state.auth.form),
+        });
+        const data = await readJsonResponse(response);
+        if (!response.ok) {
+          state.auth.error = data.error || `HTTP ${response.status}`;
+          render();
+          return;
+        }
+        state.auth.user = data.user;
+        state.auth.checked = true;
+        state.auth.error = "";
+        state.auth.mode = "login";
+        state.auth.form.password = "";
+        routeTo("home");
+      } catch (error) {
+        state.auth.error = error && error.message ? error.message : "请求失败";
+        render();
+      }
+    }
+  }
+
+  async function interceptPrintClicks(event) {
+    const el = event.target.closest(
+      '[data-nav], [data-open-print], [data-print-action], [data-answer-action], [data-twentyfour-action], [data-twentyfour-preview-action]'
+    );
+    if (!el || !isPrintEntry(el)) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    if (!(await ensurePrintPermission())) {
+      return;
+    }
+
+    runPrintEntry(el);
+  }
+
+  function isPrintEntry(el) {
+    return (
+      el.dataset.nav === "print-select" ||
+      Boolean(el.dataset.openPrint) ||
+      Boolean(el.dataset.printAction) ||
+      el.dataset.answerAction === "skip-print" ||
+      el.dataset.twentyfourAction === "print-online" ||
+      el.dataset.twentyfourAction === "save-pdf" ||
+      el.dataset.twentyfourPreviewAction === "print" ||
+      el.dataset.twentyfourPreviewAction === "pdf"
+    );
+  }
+
+  async function ensurePrintPermission() {
+    if (state.auth.user && state.auth.user.canPrint) {
+      return true;
+    }
+    try {
+      const response = await fetch("/api/auth/print-permission");
+      const data = await readJsonResponse(response);
+      if (data.canPrint) {
+        if (state.auth.user) state.auth.user.canPrint = true;
+        return true;
+      }
+      showPrintPermissionDialog(data);
+      return false;
+    } catch {
+      showPrintPermissionDialog({});
+      return false;
+    }
+  }
+
+  function runPrintEntry(el) {
+    if (el.dataset.nav === "print-select") {
+      routeTo("print-select", JSON.parse(el.dataset.params || "{}"));
+      return;
+    }
+    if (el.dataset.openPrint) {
+      const tiku = JSON.parse(el.dataset.openPrint);
+      routeTo("print-preview", {
+        tiku: encodeURIComponent(JSON.stringify(tiku)),
+        docid: -1,
+        printcount: 20,
+        byid: 2,
+        pagenum: -1,
+      });
+      return;
+    }
+    if (el.dataset.answerAction === "skip-print") {
+      const session = state.practiceSession;
+      if (!session) return;
+      routeTo("print-preview", {
+        tiku: encodeURIComponent(JSON.stringify(session.tiku)),
+        docid: session.docId,
+        printcount: -1,
+        byid: 2,
+        pagenum: -1,
+      });
+      return;
+    }
+    if (el.dataset.printAction) {
+      handlePrintAction(el.dataset.printAction);
+      return;
+    }
+    if (el.dataset.twentyfourAction) {
+      handle24Action(el.dataset.twentyfourAction);
+      return;
+    }
+    if (el.dataset.twentyfourPreviewAction) {
+      handleTwentyfourPreviewAction(el.dataset.twentyfourPreviewAction);
+    }
+  }
+
+  async function readJsonResponse(response) {
+    const raw = await response.text();
+    try {
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function showPrintPermissionDialog(data) {
+    const existing = document.querySelector(".permission-modal");
+    if (existing) existing.remove();
+
+    const overlay = document.createElement("div");
+    overlay.className = "permission-modal no-print";
+    overlay.innerHTML = `
+      <div class="permission-dialog">
+        <button class="permission-close" type="button" aria-label="关闭">×</button>
+        <h2>开通打印权限</h2>
+        <p>当前账号暂未开通打印权限。请添加微信 <strong>${escapeHtml(data.wechat || "xixifresher")}</strong>，备注账号后开通。</p>
+        <img src="${escapeAttr(data.image || "/images/image.jpg")}" alt="微信二维码" />
+      </div>
+    `;
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay || event.target.closest(".permission-close")) {
+        overlay.remove();
+      }
+    });
+    document.body.appendChild(overlay);
+  }
 })();

@@ -58,12 +58,18 @@ http
       handleLogout(req, res);
       return;
     }
+    if (requestUrl.pathname === "/api/auth/print-permission" && req.method === "GET") {
+      handlePrintPermission(req, res);
+      return;
+    }
     if (requestUrl.pathname === "/api/twentyfour-pdf" && req.method === "POST") {
+      if (!requirePrintPermission(req, res)) return;
       handleTwentyfourPdf(req, res);
       return;
     }
 
     if (requestUrl.pathname.startsWith("/api/")) {
+      if (isPrintApiRequest(requestUrl) && !requirePrintPermission(req, res)) return;
       proxyRequest(req, res, requestUrl);
       return;
     }
@@ -476,6 +482,428 @@ function handleRegister(req, res) {
   sendJson(res, 403, { error: "暂不开放注册" });
 }
 
+// Final auth implementation. This block intentionally appears at the end of the
+// file because older duplicated declarations above are kept for migration safety.
+function initDatabase() {
+  db.exec(`
+    PRAGMA journal_mode = DELETE;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      can_print INTEGER NOT NULL DEFAULT 0,
+      created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+  ensureUsersTableSchema();
+  ensureDefaultUser();
+}
+
+function ensureUsersTableSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const targetColumns = ["id", "username", "password", "can_print", "created_time"];
+  const alreadyMatches =
+    columns.length === targetColumns.length &&
+    targetColumns.every((name, index) => columns[index] && columns[index].name === name);
+
+  if (alreadyMatches) {
+    return;
+  }
+
+  const columnNames = new Set(columns.map((column) => column.name));
+  const hasPassword = columnNames.has("password");
+  const hasPasswordHash = columnNames.has("password_hash");
+  const hasCanPrint = columnNames.has("can_print");
+  const hasCreatedTime = columnNames.has("created_time");
+  const hasCreatedAt = columnNames.has("created_at");
+  const passwordExpr = hasPassword
+    ? "COALESCE(password, '')"
+    : hasPasswordHash
+      ? "COALESCE(password_hash, '')"
+      : "''";
+  const canPrintExpr = hasCanPrint
+    ? "CASE WHEN can_print IN (1, '1', 'true', 'TRUE') THEN 1 ELSE 0 END"
+    : "0";
+  const createdTimeExpr = hasCreatedTime
+    ? "CASE WHEN created_time IS NOT NULL AND TRIM(created_time) != '' THEN created_time ELSE CURRENT_TIMESTAMP END"
+    : hasCreatedAt
+      ? "CASE WHEN created_at IS NOT NULL AND TRIM(created_at) != '' THEN created_at ELSE CURRENT_TIMESTAMP END"
+      : "CURRENT_TIMESTAMP";
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec("BEGIN;");
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS users__new;
+      CREATE TABLE users__new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        can_print INTEGER NOT NULL DEFAULT 0,
+        created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.prepare(`
+      INSERT INTO users__new (id, username, password, can_print, created_time)
+      SELECT id, username, COALESCE(${passwordExpr}, ''), ${canPrintExpr}, ${createdTimeExpr}
+      FROM users
+    `).run();
+    db.exec(`
+      DROP TABLE users;
+      ALTER TABLE users__new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    throw error;
+  }
+}
+
+function ensureDefaultUser() {
+  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  const seedUsername = DEFAULT_USERNAME || FALLBACK_USERNAME;
+  const seedPassword = DEFAULT_PASSWORD || FALLBACK_PASSWORD;
+
+  if (!seedUsername || !seedPassword) {
+    return;
+  }
+
+  validateCredentials(seedUsername, seedPassword);
+
+  if (DEFAULT_USERNAME && DEFAULT_PASSWORD) {
+    db.prepare(
+      `INSERT INTO users (username, password, can_print)
+       VALUES (?, ?, 0)
+       ON CONFLICT(username) DO UPDATE SET password = excluded.password`
+    ).run(seedUsername, seedPassword);
+    return;
+  }
+
+  if (userCount === 0) {
+    db.prepare("INSERT INTO users (username, password, can_print) VALUES (?, ?, 0)").run(seedUsername, seedPassword);
+    console.warn(`Seeded fallback user: ${seedUsername}`);
+  }
+}
+
+function validateCredentials(username, password) {
+  if (!username || username.length < 3 || username.length > 32) {
+    throw httpError(400, "账号长度需在 3 到 32 位之间");
+  }
+  if (!/^[a-z0-9_]+$/i.test(username)) {
+    throw httpError(400, "账号只能包含字母、数字、下划线");
+  }
+  if (!password || String(password).length < 6 || String(password).length > 64) {
+    throw httpError(400, "密码长度需在 6 到 64 位之间");
+  }
+}
+
+function handleRegister(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(normalized);
+      if (existing) {
+        throw httpError(409, "账号已存在");
+      }
+
+      const result = db
+        .prepare("INSERT INTO users (username, password, can_print) VALUES (?, ?, 0)")
+        .run(normalized, normalizedPassword);
+      const session = createSession(result.lastInsertRowid);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: { id: Number(result.lastInsertRowid), username: normalized, canPrint: false },
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleLogin(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const user = db.prepare("SELECT id, username, password, can_print FROM users WHERE username = ?").get(normalized);
+      if (!user || normalizedPassword !== String(user.password || "")) {
+        throw httpError(401, "账号或密码错误");
+      }
+
+      const session = createSession(user.id);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: { id: Number(user.id), username: user.username, canPrint: user.can_print === 1 },
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleMe(req, res) {
+  const user = getUserFromRequest(req);
+  if (!user) {
+    sendJson(res, 401, { user: null });
+    return;
+  }
+  sendJson(res, 200, {
+    user: { id: Number(user.id), username: user.username, canPrint: user.can_print === 1 },
+  });
+}
+
+function handlePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  sendJson(res, user ? 200 : 401, {
+    canPrint: Boolean(user && user.can_print === 1),
+    wechat: "xixifresher",
+    image: "/images/image.jpg",
+  });
+}
+
+function requirePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  if (user && user.can_print === 1) {
+    return true;
+  }
+  sendJson(res, user ? 403 : 401, {
+    error: "print_permission_required",
+    message: "请添加微信 xixifresher 开通打印权限",
+    wechat: "xixifresher",
+    image: "/images/image.jpg",
+  });
+  return false;
+}
+
+function isPrintApiRequest(requestUrl) {
+  if (requestUrl.pathname === "/api/bridge.php" && requestUrl.searchParams.get("function") === "downloaddoc") {
+    return true;
+  }
+  return requestUrl.pathname.startsWith("/api/static/kousuan_v2/pdf/");
+}
+
+function getUserFromRequest(req) {
+  const token = getSessionToken(req);
+  if (!token) return null;
+
+  const row = db
+    .prepare(
+      `SELECT users.id, users.username, users.can_print, sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = ?`
+    )
+    .get(token);
+
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    return null;
+  }
+  return row;
+}
+
+function initDatabase() {
+  db.exec(`
+    PRAGMA journal_mode = DELETE;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      can_print INTEGER NOT NULL DEFAULT 0,
+      created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+  ensureUsersTableSchema();
+  ensureDefaultUser();
+}
+
+function ensureUsersTableSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const targetColumns = ["id", "username", "password", "can_print", "created_time"];
+  const alreadyMatches =
+    columns.length === targetColumns.length &&
+    targetColumns.every((name, index) => columns[index] && columns[index].name === name);
+
+  if (alreadyMatches) {
+    return;
+  }
+
+  const hasPassword = columns.some((column) => column.name === "password");
+  const hasPasswordHash = columns.some((column) => column.name === "password_hash");
+  const hasCanPrint = columns.some((column) => column.name === "can_print");
+  const hasCreatedTime = columns.some((column) => column.name === "created_time");
+  const hasCreatedAt = columns.some((column) => column.name === "created_at");
+  const passwordExpr =
+    hasPassword && hasPasswordHash
+      ? "COALESCE(NULLIF(password, ''), password_hash, '')"
+      : hasPassword
+        ? "COALESCE(password, '')"
+        : hasPasswordHash
+          ? "COALESCE(password_hash, '')"
+          : "''";
+  const canPrintExpr = hasCanPrint ? "CASE WHEN can_print = 1 THEN 1 ELSE 0 END" : "0";
+  const createdTimeExpr = hasCreatedTime
+    ? "CASE WHEN created_time IS NOT NULL AND TRIM(created_time) != '' THEN created_time ELSE CURRENT_TIMESTAMP END"
+    : hasCreatedAt
+      ? "CASE WHEN created_at IS NOT NULL AND LENGTH(TRIM(created_at)) >= 10 THEN created_at ELSE CURRENT_TIMESTAMP END"
+      : "CURRENT_TIMESTAMP";
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec("BEGIN;");
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS users__new;
+      CREATE TABLE users__new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        can_print INTEGER NOT NULL DEFAULT 0,
+        created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.prepare(`
+      INSERT INTO users__new (id, username, password, can_print, created_time)
+      SELECT id, username, ${passwordExpr}, ${canPrintExpr}, ${createdTimeExpr}
+      FROM users
+    `).run();
+    db.exec(`
+      DROP TABLE users;
+      ALTER TABLE users__new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    throw error;
+  }
+}
+
+function handleRegister(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(normalized);
+      if (existing) {
+        throw httpError(409, "账号已存在");
+      }
+
+      const result = db
+        .prepare("INSERT INTO users (username, password, can_print) VALUES (?, ?, 0)")
+        .run(normalized, normalizedPassword);
+      const session = createSession(result.lastInsertRowid);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: { id: Number(result.lastInsertRowid), username: normalized, canPrint: false },
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleLogin(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const user = db.prepare("SELECT id, username, password, can_print FROM users WHERE username = ?").get(normalized);
+      if (!user || normalizedPassword !== String(user.password || "")) {
+        throw httpError(401, "账号或密码错误");
+      }
+
+      const session = createSession(user.id);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: { id: Number(user.id), username: user.username, canPrint: user.can_print === 1 },
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleMe(req, res) {
+  const user = getUserFromRequest(req);
+  if (!user) {
+    sendJson(res, 401, { user: null });
+    return;
+  }
+  sendJson(res, 200, {
+    user: { id: Number(user.id), username: user.username, canPrint: user.can_print === 1 },
+  });
+}
+
+function handlePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  sendJson(res, user ? 200 : 401, {
+    canPrint: Boolean(user && user.can_print === 1),
+    wechat: "xixifresher",
+    image: "/images/image.jpg",
+  });
+}
+
+function requirePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  if (user && user.can_print === 1) {
+    return true;
+  }
+  sendJson(res, user ? 403 : 401, {
+    error: "print_permission_required",
+    message: "请添加微信 xixifresher 开通打印权限",
+    wechat: "xixifresher",
+    image: "/images/image.jpg",
+  });
+  return false;
+}
+
+function isPrintApiRequest(requestUrl) {
+  if (requestUrl.pathname === "/api/bridge.php" && requestUrl.searchParams.get("function") === "downloaddoc") {
+    return true;
+  }
+  return requestUrl.pathname.startsWith("/api/static/kousuan_v2/pdf/");
+}
+
+function getUserFromRequest(req) {
+  const token = getSessionToken(req);
+  if (!token) return null;
+
+  const row = db
+    .prepare(
+      `SELECT users.id, users.username, users.can_print, sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = ?`
+    )
+    .get(token);
+
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    return null;
+  }
+  return row;
+}
+
 function createSession(userId) {
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
@@ -870,4 +1298,235 @@ function handleLogin(req, res) {
 
 function handleRegister(req, res) {
   sendJson(res, 403, { error: "暂不开放注册" });
+}
+
+// Runtime auth override: keep this as the last auth block so duplicated legacy
+// declarations above cannot disable registration or drop print permissions.
+function initDatabase() {
+  db.exec(`
+    PRAGMA journal_mode = DELETE;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      can_print INTEGER NOT NULL DEFAULT 0,
+      created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+  ensureUsersTableSchema();
+  ensureDefaultUser();
+}
+
+function ensureUsersTableSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const targetColumns = ["id", "username", "password", "can_print", "created_time"];
+  const alreadyMatches =
+    columns.length === targetColumns.length &&
+    targetColumns.every((name, index) => columns[index] && columns[index].name === name);
+
+  if (alreadyMatches) {
+    return;
+  }
+
+  const columnNames = new Set(columns.map((column) => column.name));
+  const hasPassword = columnNames.has("password");
+  const hasPasswordHash = columnNames.has("password_hash");
+  const hasCanPrint = columnNames.has("can_print");
+  const hasCreatedTime = columnNames.has("created_time");
+  const hasCreatedAt = columnNames.has("created_at");
+  const passwordExpr = hasPassword
+    ? "COALESCE(password, '')"
+    : hasPasswordHash
+      ? "COALESCE(password_hash, '')"
+      : "''";
+  const canPrintExpr = hasCanPrint
+    ? "CASE WHEN can_print IN (1, '1', 'true', 'TRUE') THEN 1 ELSE 0 END"
+    : "0";
+  const createdTimeExpr = hasCreatedTime
+    ? "CASE WHEN created_time IS NOT NULL AND TRIM(created_time) != '' THEN created_time ELSE CURRENT_TIMESTAMP END"
+    : hasCreatedAt
+      ? "CASE WHEN created_at IS NOT NULL AND TRIM(created_at) != '' THEN created_at ELSE CURRENT_TIMESTAMP END"
+      : "CURRENT_TIMESTAMP";
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec("BEGIN;");
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS users__new;
+      CREATE TABLE users__new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        can_print INTEGER NOT NULL DEFAULT 0,
+        created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.prepare(`
+      INSERT INTO users__new (id, username, password, can_print, created_time)
+      SELECT id, username, COALESCE(${passwordExpr}, ''), ${canPrintExpr}, ${createdTimeExpr}
+      FROM users
+    `).run();
+    db.exec(`
+      DROP TABLE users;
+      ALTER TABLE users__new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    throw error;
+  }
+}
+
+function ensureDefaultUser() {
+  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  const seedUsername = DEFAULT_USERNAME || FALLBACK_USERNAME;
+  const seedPassword = DEFAULT_PASSWORD || FALLBACK_PASSWORD;
+
+  if (!seedUsername || !seedPassword) {
+    return;
+  }
+
+  validateCredentials(seedUsername, seedPassword);
+
+  if (DEFAULT_USERNAME && DEFAULT_PASSWORD) {
+    db.prepare(
+      `INSERT INTO users (username, password, can_print)
+       VALUES (?, ?, 0)
+       ON CONFLICT(username) DO UPDATE SET password = excluded.password`
+    ).run(seedUsername, seedPassword);
+    return;
+  }
+
+  if (userCount === 0) {
+    db.prepare("INSERT INTO users (username, password, can_print) VALUES (?, ?, 0)").run(seedUsername, seedPassword);
+    console.warn(`Seeded fallback user: ${seedUsername}`);
+  }
+}
+
+function validateCredentials(username, password) {
+  if (!username || username.length < 3 || username.length > 32) {
+    throw httpError(400, "账号长度需在 3 到 32 位之间");
+  }
+  if (!/^[a-z0-9_]+$/i.test(username)) {
+    throw httpError(400, "账号只能包含字母、数字、下划线");
+  }
+  if (!password || String(password).length < 6 || String(password).length > 64) {
+    throw httpError(400, "密码长度需在 6 到 64 位之间");
+  }
+}
+
+function handleRegister(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(normalized);
+      if (existing) {
+        throw httpError(409, "账号已存在");
+      }
+
+      const result = db
+        .prepare("INSERT INTO users (username, password, can_print) VALUES (?, ?, 0)")
+        .run(normalized, normalizedPassword);
+      const session = createSession(result.lastInsertRowid);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: { id: Number(result.lastInsertRowid), username: normalized, canPrint: false },
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleLogin(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const user = db.prepare("SELECT id, username, password, can_print FROM users WHERE username = ?").get(normalized);
+      if (!user || normalizedPassword !== String(user.password || "")) {
+        throw httpError(401, "账号或密码错误");
+      }
+
+      const session = createSession(user.id);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: { id: Number(user.id), username: user.username, canPrint: user.can_print === 1 },
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleMe(req, res) {
+  const user = getUserFromRequest(req);
+  if (!user) {
+    sendJson(res, 401, { user: null });
+    return;
+  }
+  sendJson(res, 200, {
+    user: { id: Number(user.id), username: user.username, canPrint: user.can_print === 1 },
+  });
+}
+
+function handlePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  sendJson(res, user ? 200 : 401, {
+    canPrint: Boolean(user && user.can_print === 1),
+    wechat: "xixifresher",
+    image: "/images/image.jpg",
+  });
+}
+
+function requirePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  if (user && user.can_print === 1) {
+    return true;
+  }
+  sendJson(res, user ? 403 : 401, {
+    error: "print_permission_required",
+    message: "请添加微信 xixifresher 开通打印权限",
+    wechat: "xixifresher",
+    image: "/images/image.jpg",
+  });
+  return false;
+}
+
+function isPrintApiRequest(requestUrl) {
+  if (requestUrl.pathname === "/api/bridge.php" && requestUrl.searchParams.get("function") === "downloaddoc") {
+    return true;
+  }
+  return requestUrl.pathname.startsWith("/api/static/kousuan_v2/pdf/");
+}
+
+function getUserFromRequest(req) {
+  const token = getSessionToken(req);
+  if (!token) return null;
+
+  const row = db
+    .prepare(
+      `SELECT users.id, users.username, users.can_print, sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = ?`
+    )
+    .get(token);
+
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    return null;
+  }
+  return row;
 }
