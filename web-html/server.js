@@ -11,7 +11,7 @@ const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 8080);
 const WEB_ROOT = __dirname;
 const REMOTE_HOST = "www.xiaoxuestudy.com";
-const DATA_ROOT = path.resolve(process.env.DATA_DIR || process.env.RENDER_DISK_PATH || WEB_ROOT);
+const DATA_ROOT = path.resolve(process.env.DATA_DIR || WEB_ROOT);
 const DB_PATH = path.join(DATA_ROOT, "data.sqlite");
 const SESSION_COOKIE = "kousuan_session";
 const DEFAULT_USERNAME = String(process.env.DEFAULT_USERNAME || process.env.ADMIN_USERNAME || "").trim().toLowerCase();
@@ -186,7 +186,7 @@ function getUpstreamPath(requestUrl) {
 
 function initDatabase() {
   db.exec(`
-    PRAGMA journal_mode = WAL;
+    PRAGMA journal_mode = DELETE;
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
@@ -731,7 +731,7 @@ function cleanupTempFiles(paths) {
 
 function initDatabase() {
   db.exec(`
-    PRAGMA journal_mode = WAL;
+    PRAGMA journal_mode = DELETE;
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
