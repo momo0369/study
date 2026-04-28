@@ -2255,4 +2255,197 @@
     });
     document.body.appendChild(overlay);
   }
+
+  function renderHome() {
+    const stars = state.homeStats.localStars.reduce((sum, item) => sum + Number(item.stars || 0), 0);
+    const user = state.auth.user || null;
+    const isMember = userHasActiveMembership(user);
+    return `
+      <div class="hero">
+        <section class="hero-banner">
+          <div class="kpis">
+            <div class="kpi">
+              <strong>${state.homeStats.localStars.length}</strong>
+              <span>本地已记录题库</span>
+            </div>
+            <div class="kpi">
+              <strong>${stars}</strong>
+              <span>累计星级</span>
+            </div>
+            <div class="kpi">
+              <strong>${state.version ? state.version.length : 0}</strong>
+              <span>版本项</span>
+            </div>
+            <div class="kpi">
+              <strong>${escapeHtml(state.homeStats.nickname || "未设置")}</strong>
+              <span>奖状昵称</span>
+            </div>
+          </div>
+        </section>
+        ${isMember ? renderMemberBanner(user) : ""}
+        <section class="card">
+          <div class="section-head">
+            <h2>入口</h2>
+          </div>
+          <div class="grid cards">
+            ${homeCard("在线口算", "按年级或题型拉取题库，进入答题、错题重做和结果页。", "practice-select")}
+            ${homeCard("打印练习", "可调整题量、版式和页面文案；在线打印与保存 PDF 需会员有效期内。", "print-select")}
+            ${homeCard("24 点", "保留原始四数运算玩法，并支持在线打印与保存 PDF。", "twentyfour", {
+              mode: 1,
+              small_rate: 10,
+              big_rate: 20,
+              itemid: 1,
+              timuid: -1,
+              count: 5,
+            })}
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  function renderMemberBanner(user) {
+    return `
+      <section class="card member-banner">
+        <div class="section-head">
+          <div>
+            <h2>会员信息</h2>
+            <p class="muted">当前账号在会员有效期内，可使用在线打印和保存 PDF。</p>
+          </div>
+        </div>
+        <div class="member-expiry-row">
+          <span class="chip active">会员有效期至</span>
+          <strong>${escapeHtml(formatMemberExpiresAt(user.memberExpiresAt))}</strong>
+        </div>
+      </section>
+    `;
+  }
+
+  function isPrintEntry(el) {
+    return (
+      Boolean(el.dataset.openPrint) ||
+      Boolean(el.dataset.printAction) ||
+      el.dataset.answerAction === "skip-print" ||
+      el.dataset.twentyfourAction === "print-online" ||
+      el.dataset.twentyfourAction === "save-pdf" ||
+      el.dataset.twentyfourPreviewAction === "print" ||
+      el.dataset.twentyfourPreviewAction === "pdf"
+    );
+  }
+
+  async function ensurePrintPermission() {
+    if (userHasActiveMembership(state.auth.user)) {
+      return true;
+    }
+    try {
+      const response = await fetch("/api/auth/print-permission");
+      const data = await readJsonResponse(response);
+      if (data.canPrint || data.isMember) {
+        if (state.auth.user) {
+          state.auth.user = {
+            ...state.auth.user,
+            canPrint: true,
+            isMember: true,
+            memberExpiresAt: data.memberExpiresAt || state.auth.user.memberExpiresAt || null,
+          };
+        }
+        return true;
+      }
+      showPrintPermissionDialog(data);
+      return false;
+    } catch {
+      showPrintPermissionDialog({});
+      return false;
+    }
+  }
+
+  function showPrintPermissionDialog(data) {
+    const existing = document.querySelector(".permission-modal");
+    if (existing) existing.remove();
+
+    const plans = Array.isArray(data.plans) && data.plans.length
+      ? data.plans
+      : [
+          { title: "3个月", price: "29.9元" },
+          { title: "1年", price: "69.9元" },
+        ];
+    const expiresHint =
+      data && data.memberExpiresAt && !data.isMember
+        ? `<p class="permission-note">当前会员已到期：${escapeHtml(formatMemberExpiresAt(data.memberExpiresAt))}</p>`
+        : `<p class="permission-note">在线打印和保存 PDF 需要会员有效期内。</p>`;
+
+    const overlay = document.createElement("div");
+    overlay.className = "permission-modal no-print";
+    overlay.innerHTML = `
+      <div class="permission-dialog">
+        <button class="permission-close" type="button" aria-label="关闭">×</button>
+        <h2>开通会员后可打印</h2>
+        <div class="permission-meta">
+          <p>请添加微信 <strong>${escapeHtml(data.wechat || "refresh_dd")}</strong>，备注账号后我来手动开通会员。</p>
+          ${expiresHint}
+        </div>
+        <div class="permission-prices">
+          ${plans
+            .map(
+              (item) => `
+                <div class="permission-price">
+                  <span>${escapeHtml(item.title || "")}</span>
+                  <strong>${escapeHtml(item.price || "")}</strong>
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+        <img src="${escapeAttr(data.image || "/images/image.png")}" alt="微信二维码" />
+      </div>
+    `;
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay || event.target.closest(".permission-close")) {
+        overlay.remove();
+      }
+    });
+    document.body.appendChild(overlay);
+  }
+
+  function userHasActiveMembership(user) {
+    return Boolean(user && parseMemberExpiresAt(user.memberExpiresAt) && parseMemberExpiresAt(user.memberExpiresAt).getTime() >= Date.now());
+  }
+
+  function formatMemberExpiresAt(value) {
+    const date = parseMemberExpiresAt(value);
+    if (!date) return "未开通";
+    try {
+      return new Intl.DateTimeFormat("zh-CN", {
+        timeZone: "Asia/Shanghai",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+        .format(date)
+        .replace(/\//g, "-");
+    } catch {
+      return String(value).replace("T", " ").replace(/(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, "");
+    }
+  }
+
+  function parseMemberExpiresAt(value) {
+    if (!value) return null;
+    const text = String(value).trim();
+    if (!text) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      return new Date(`${text}T23:59:59+08:00`);
+    }
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(text)) {
+      return new Date(text.replace(" ", "T") + ":00+08:00");
+    }
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(text)) {
+      return new Date(text.replace(" ", "T") + "+08:00");
+    }
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
 })();

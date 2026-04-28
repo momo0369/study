@@ -496,6 +496,30 @@ textarea {
   line-height: 1.6;
 }
 
+.permission-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.permission-prices {
+  display: grid;
+  gap: 10px;
+}
+
+.permission-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #f7fafb;
+}
+
+.permission-note {
+  font-size: 14px;
+}
+
 .permission-dialog img {
   width: min(260px, 100%);
   justify-self: center;
@@ -515,6 +539,19 @@ textarea {
   cursor: pointer;
   font-size: 20px;
   line-height: 1;
+}
+
+.member-banner {
+  margin-bottom: 18px;
+  background: linear-gradient(135deg, #fff6df 0%, #ffffff 72%);
+}
+
+.member-expiry-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 18px;
 }
 
 .iframe-wrap iframe {

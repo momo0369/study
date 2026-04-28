@@ -36,22 +36,22 @@ const MIME_TYPES = {
 };
 
 const db = new DatabaseSync(DB_PATH);
-initDatabase();
+initMemberAccessDatabase();
 
 http
   .createServer((req, res) => {
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
 
     if (requestUrl.pathname === "/api/auth/register" && req.method === "POST") {
-      handleRegister(req, res);
+      handleMemberAccessRegister(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/auth/login" && req.method === "POST") {
-      handleLogin(req, res);
+      handleMemberAccessLogin(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/auth/me" && req.method === "GET") {
-      handleMe(req, res);
+      handleMemberAccessMe(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/auth/logout" && req.method === "POST") {
@@ -59,17 +59,17 @@ http
       return;
     }
     if (requestUrl.pathname === "/api/auth/print-permission" && req.method === "GET") {
-      handlePrintPermission(req, res);
+      handleMemberAccessPrintPermission(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/twentyfour-pdf" && req.method === "POST") {
-      if (!requirePrintPermission(req, res)) return;
+      if (!requireMemberAccessPrintPermission(req, res)) return;
       handleTwentyfourPdf(req, res);
       return;
     }
 
     if (requestUrl.pathname.startsWith("/api/")) {
-      if (isPrintApiRequest(requestUrl) && !requirePrintPermission(req, res)) return;
+      if (isMemberAccessProtectedPrintApiRequest(requestUrl) && !requireMemberAccessPrintPermission(req, res)) return;
       proxyRequest(req, res, requestUrl);
       return;
     }
@@ -188,6 +188,292 @@ function getUpstreamPath(requestUrl) {
     return `${requestUrl.pathname.slice("/api/static".length)}${requestUrl.search}`;
   }
   return requestUrl.pathname.replace(/^\/api/, "") + requestUrl.search;
+}
+
+function initMemberAccessDatabase() {
+  db.exec(`
+    PRAGMA journal_mode = DELETE;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      member_expires_at TEXT DEFAULT NULL,
+      created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+  ensureMemberAccessUsersTableSchema();
+  ensureMemberAccessDefaultUser();
+}
+
+function ensureMemberAccessUsersTableSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const targetColumns = ["id", "username", "password", "member_expires_at", "created_time"];
+  const alreadyMatches =
+    columns.length === targetColumns.length &&
+    targetColumns.every((name, index) => columns[index] && columns[index].name === name);
+
+  if (alreadyMatches) {
+    return;
+  }
+
+  const columnNames = new Set(columns.map((column) => column.name));
+  const hasPassword = columnNames.has("password");
+  const hasPasswordHash = columnNames.has("password_hash");
+  const hasMemberExpiresAt = columnNames.has("member_expires_at");
+  const hasCanPrint = columnNames.has("can_print");
+  const hasCreatedTime = columnNames.has("created_time");
+  const hasCreatedAt = columnNames.has("created_at");
+  const passwordExpr = hasPassword
+    ? "COALESCE(password, '')"
+    : hasPasswordHash
+      ? "COALESCE(password_hash, '')"
+      : "''";
+  const memberExpiresExpr = hasMemberExpiresAt
+    ? "NULLIF(TRIM(member_expires_at), '')"
+    : hasCanPrint
+      ? "CASE WHEN can_print IN (1, '1', 'true', 'TRUE') THEN '2099-12-31 23:59:59' ELSE NULL END"
+      : "NULL";
+  const createdTimeExpr = hasCreatedTime
+    ? "CASE WHEN created_time IS NOT NULL AND TRIM(created_time) != '' THEN created_time ELSE CURRENT_TIMESTAMP END"
+    : hasCreatedAt
+      ? "CASE WHEN created_at IS NOT NULL AND TRIM(created_at) != '' THEN created_at ELSE CURRENT_TIMESTAMP END"
+      : "CURRENT_TIMESTAMP";
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec("BEGIN;");
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS users__new;
+      CREATE TABLE users__new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        member_expires_at TEXT DEFAULT NULL,
+        created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.prepare(`
+      INSERT INTO users__new (id, username, password, member_expires_at, created_time)
+      SELECT id, username, COALESCE(${passwordExpr}, ''), ${memberExpiresExpr}, ${createdTimeExpr}
+      FROM users
+    `).run();
+    db.exec(`
+      DROP TABLE users;
+      ALTER TABLE users__new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    throw error;
+  }
+}
+
+function ensureMemberAccessDefaultUser() {
+  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  const seedUsername = DEFAULT_USERNAME || FALLBACK_USERNAME;
+  const seedPassword = DEFAULT_PASSWORD || FALLBACK_PASSWORD;
+
+  if (!seedUsername || !seedPassword) {
+    return;
+  }
+
+  validateMemberAccessCredentials(seedUsername, seedPassword);
+
+  if (DEFAULT_USERNAME && DEFAULT_PASSWORD) {
+    db.prepare(
+      `INSERT INTO users (username, password, member_expires_at)
+       VALUES (?, ?, NULL)
+       ON CONFLICT(username) DO UPDATE SET password = excluded.password`
+    ).run(seedUsername, seedPassword);
+    return;
+  }
+
+  if (userCount === 0) {
+    db.prepare("INSERT INTO users (username, password, member_expires_at) VALUES (?, ?, NULL)").run(seedUsername, seedPassword);
+    console.warn(`Seeded fallback user: ${seedUsername}`);
+  }
+}
+
+function validateMemberAccessCredentials(username, password) {
+  if (!username || username.length < 3 || username.length > 32) {
+    throw httpError(400, "账号长度需在 3 到 32 位之间");
+  }
+  if (!/^[a-z0-9_]+$/i.test(username)) {
+    throw httpError(400, "账号只能包含字母、数字、下划线");
+  }
+  if (!password || String(password).length < 6 || String(password).length > 64) {
+    throw httpError(400, "密码长度需在 6 到 64 位之间");
+  }
+}
+
+function handleMemberAccessRegister(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateMemberAccessCredentials(normalized, normalizedPassword);
+
+      const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(normalized);
+      if (existing) {
+        throw httpError(409, "账号已存在");
+      }
+
+      const result = db
+        .prepare("INSERT INTO users (username, password, member_expires_at) VALUES (?, ?, NULL)")
+        .run(normalized, normalizedPassword);
+      const session = createSession(result.lastInsertRowid);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: buildMemberAccessAuthUser({
+          id: result.lastInsertRowid,
+          username: normalized,
+          member_expires_at: null,
+        }),
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleMemberAccessLogin(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateMemberAccessCredentials(normalized, normalizedPassword);
+
+      const user = db
+        .prepare("SELECT id, username, password, member_expires_at FROM users WHERE username = ?")
+        .get(normalized);
+      if (!user || normalizedPassword !== String(user.password || "")) {
+        throw httpError(401, "账号或密码错误");
+      }
+
+      const session = createSession(user.id);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, { user: buildMemberAccessAuthUser(user) });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleMemberAccessMe(req, res) {
+  const user = getMemberAccessUserFromRequest(req);
+  if (!user) {
+    sendJson(res, 401, { user: null });
+    return;
+  }
+  sendJson(res, 200, { user: buildMemberAccessAuthUser(user) });
+}
+
+function handleMemberAccessPrintPermission(req, res) {
+  const user = getMemberAccessUserFromRequest(req);
+  sendJson(res, user ? 200 : 401, buildMemberAccessPromptPayload(user));
+}
+
+function requireMemberAccessPrintPermission(req, res) {
+  const user = getMemberAccessUserFromRequest(req);
+  if (user && isMemberAccessActive(user.member_expires_at)) {
+    return true;
+  }
+  sendJson(res, user ? 403 : 401, {
+    error: "membership_required",
+    message: "在线打印和保存 PDF 需要会员，请添加微信 refresh_dd 开通。",
+    ...buildMemberAccessPromptPayload(user),
+  });
+  return false;
+}
+
+function isMemberAccessProtectedPrintApiRequest(requestUrl) {
+  if (requestUrl.pathname === "/api/bridge.php" && requestUrl.searchParams.get("function") === "downloaddoc") {
+    return true;
+  }
+  return requestUrl.pathname.startsWith("/api/static/kousuan_v2/pdf/");
+}
+
+function getMemberAccessUserFromRequest(req) {
+  const token = getSessionToken(req);
+  if (!token) return null;
+
+  const row = db
+    .prepare(
+      `SELECT users.id, users.username, users.member_expires_at, sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = ?`
+    )
+    .get(token);
+
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    return null;
+  }
+  return row;
+}
+
+function buildMemberAccessAuthUser(user) {
+  if (!user) return null;
+  const memberExpiresAt = normalizeMemberAccessExpiresAt(user.member_expires_at);
+  const isMember = isMemberAccessActive(memberExpiresAt);
+  return {
+    id: Number(user.id),
+    username: user.username,
+    memberExpiresAt,
+    isMember,
+    canPrint: isMember,
+  };
+}
+
+function buildMemberAccessPromptPayload(user) {
+  const authUser = buildMemberAccessAuthUser(user);
+  return {
+    canPrint: Boolean(authUser && authUser.canPrint),
+    isMember: Boolean(authUser && authUser.isMember),
+    memberExpiresAt: authUser ? authUser.memberExpiresAt : null,
+    wechat: "refresh_dd",
+    image: "/images/image.png",
+    plans: [
+      { title: "3个月", price: "29.9元" },
+      { title: "1年", price: "69.9元" },
+    ],
+  };
+}
+
+function normalizeMemberAccessExpiresAt(value) {
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text ? text : null;
+}
+
+function isMemberAccessActive(value) {
+  const expiresAt = parseMemberAccessExpiresAt(value);
+  return Boolean(expiresAt && expiresAt.getTime() >= Date.now());
+}
+
+function parseMemberAccessExpiresAt(value) {
+  const text = normalizeMemberAccessExpiresAt(value);
+  if (!text) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return new Date(`${text}T23:59:59+08:00`);
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(text)) {
+    return new Date(text.replace(" ", "T") + ":00+08:00");
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(text)) {
+    return new Date(text.replace(" ", "T") + "+08:00");
+  }
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function initDatabase() {
@@ -711,6 +997,525 @@ function getUserFromRequest(req) {
     return null;
   }
   return row;
+}
+
+// Final membership override at true EOF.
+function initDatabase() {
+  db.exec(`
+    PRAGMA journal_mode = DELETE;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      member_expires_at TEXT DEFAULT NULL,
+      created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+  ensureUsersTableSchema();
+  ensureDefaultUser();
+}
+
+function ensureUsersTableSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const targetColumns = ["id", "username", "password", "member_expires_at", "created_time"];
+  const alreadyMatches =
+    columns.length === targetColumns.length &&
+    targetColumns.every((name, index) => columns[index] && columns[index].name === name);
+
+  if (alreadyMatches) {
+    return;
+  }
+
+  const columnNames = new Set(columns.map((column) => column.name));
+  const hasPassword = columnNames.has("password");
+  const hasPasswordHash = columnNames.has("password_hash");
+  const hasMemberExpiresAt = columnNames.has("member_expires_at");
+  const hasCanPrint = columnNames.has("can_print");
+  const hasCreatedTime = columnNames.has("created_time");
+  const hasCreatedAt = columnNames.has("created_at");
+  const passwordExpr = hasPassword
+    ? "COALESCE(password, '')"
+    : hasPasswordHash
+      ? "COALESCE(password_hash, '')"
+      : "''";
+  const memberExpiresExpr = hasMemberExpiresAt
+    ? "NULLIF(TRIM(member_expires_at), '')"
+    : hasCanPrint
+      ? "CASE WHEN can_print IN (1, '1', 'true', 'TRUE') THEN '2099-12-31 23:59:59' ELSE NULL END"
+      : "NULL";
+  const createdTimeExpr = hasCreatedTime
+    ? "CASE WHEN created_time IS NOT NULL AND TRIM(created_time) != '' THEN created_time ELSE CURRENT_TIMESTAMP END"
+    : hasCreatedAt
+      ? "CASE WHEN created_at IS NOT NULL AND TRIM(created_at) != '' THEN created_at ELSE CURRENT_TIMESTAMP END"
+      : "CURRENT_TIMESTAMP";
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec("BEGIN;");
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS users__new;
+      CREATE TABLE users__new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        member_expires_at TEXT DEFAULT NULL,
+        created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.prepare(`
+      INSERT INTO users__new (id, username, password, member_expires_at, created_time)
+      SELECT id, username, COALESCE(${passwordExpr}, ''), ${memberExpiresExpr}, ${createdTimeExpr}
+      FROM users
+    `).run();
+    db.exec(`
+      DROP TABLE users;
+      ALTER TABLE users__new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    throw error;
+  }
+}
+
+function ensureDefaultUser() {
+  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  const seedUsername = DEFAULT_USERNAME || FALLBACK_USERNAME;
+  const seedPassword = DEFAULT_PASSWORD || FALLBACK_PASSWORD;
+
+  if (!seedUsername || !seedPassword) {
+    return;
+  }
+
+  validateCredentials(seedUsername, seedPassword);
+
+  if (DEFAULT_USERNAME && DEFAULT_PASSWORD) {
+    db.prepare(
+      `INSERT INTO users (username, password, member_expires_at)
+       VALUES (?, ?, NULL)
+       ON CONFLICT(username) DO UPDATE SET password = excluded.password`
+    ).run(seedUsername, seedPassword);
+    return;
+  }
+
+  if (userCount === 0) {
+    db.prepare("INSERT INTO users (username, password, member_expires_at) VALUES (?, ?, NULL)").run(seedUsername, seedPassword);
+    console.warn(`Seeded fallback user: ${seedUsername}`);
+  }
+}
+
+function validateCredentials(username, password) {
+  if (!username || username.length < 3 || username.length > 32) {
+    throw httpError(400, "账号长度需在 3 到 32 位之间");
+  }
+  if (!/^[a-z0-9_]+$/i.test(username)) {
+    throw httpError(400, "账号只能包含字母、数字、下划线");
+  }
+  if (!password || String(password).length < 6 || String(password).length > 64) {
+    throw httpError(400, "密码长度需在 6 到 64 位之间");
+  }
+}
+
+function handleRegister(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(normalized);
+      if (existing) {
+        throw httpError(409, "账号已存在");
+      }
+
+      const result = db
+        .prepare("INSERT INTO users (username, password, member_expires_at) VALUES (?, ?, NULL)")
+        .run(normalized, normalizedPassword);
+      const session = createSession(result.lastInsertRowid);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: buildAuthUserPayload({
+          id: result.lastInsertRowid,
+          username: normalized,
+          member_expires_at: null,
+        }),
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleLogin(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const user = db
+        .prepare("SELECT id, username, password, member_expires_at FROM users WHERE username = ?")
+        .get(normalized);
+      if (!user || normalizedPassword !== String(user.password || "")) {
+        throw httpError(401, "账号或密码错误");
+      }
+
+      const session = createSession(user.id);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, { user: buildAuthUserPayload(user) });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleMe(req, res) {
+  const user = getUserFromRequest(req);
+  if (!user) {
+    sendJson(res, 401, { user: null });
+    return;
+  }
+  sendJson(res, 200, { user: buildAuthUserPayload(user) });
+}
+
+function handlePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  sendJson(res, user ? 200 : 401, buildMembershipPromptPayload(user));
+}
+
+function requirePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  if (user && isMembershipActive(user.member_expires_at)) {
+    return true;
+  }
+  sendJson(res, user ? 403 : 401, {
+    error: "membership_required",
+    message: "在线打印和保存 PDF 需要会员，请添加微信 refresh_dd 开通。",
+    ...buildMembershipPromptPayload(user),
+  });
+  return false;
+}
+
+function isPrintApiRequest(requestUrl) {
+  if (requestUrl.pathname === "/api/bridge.php" && requestUrl.searchParams.get("function") === "downloaddoc") {
+    return true;
+  }
+  return requestUrl.pathname.startsWith("/api/static/kousuan_v2/pdf/");
+}
+
+function getUserFromRequest(req) {
+  const token = getSessionToken(req);
+  if (!token) return null;
+
+  const row = db
+    .prepare(
+      `SELECT users.id, users.username, users.member_expires_at, sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = ?`
+    )
+    .get(token);
+
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    return null;
+  }
+  return row;
+}
+
+// Latest membership-based auth override. Keep this block last so it wins over
+// the duplicated legacy declarations above.
+function initDatabase() {
+  db.exec(`
+    PRAGMA journal_mode = DELETE;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      member_expires_at TEXT DEFAULT NULL,
+      created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+  ensureUsersTableSchema();
+  ensureDefaultUser();
+}
+
+function ensureUsersTableSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const targetColumns = ["id", "username", "password", "member_expires_at", "created_time"];
+  const alreadyMatches =
+    columns.length === targetColumns.length &&
+    targetColumns.every((name, index) => columns[index] && columns[index].name === name);
+
+  if (alreadyMatches) {
+    return;
+  }
+
+  const columnNames = new Set(columns.map((column) => column.name));
+  const hasPassword = columnNames.has("password");
+  const hasPasswordHash = columnNames.has("password_hash");
+  const hasMemberExpiresAt = columnNames.has("member_expires_at");
+  const hasCanPrint = columnNames.has("can_print");
+  const hasCreatedTime = columnNames.has("created_time");
+  const hasCreatedAt = columnNames.has("created_at");
+  const passwordExpr = hasPassword
+    ? "COALESCE(password, '')"
+    : hasPasswordHash
+      ? "COALESCE(password_hash, '')"
+      : "''";
+  const memberExpiresExpr = hasMemberExpiresAt
+    ? "NULLIF(TRIM(member_expires_at), '')"
+    : hasCanPrint
+      ? "CASE WHEN can_print IN (1, '1', 'true', 'TRUE') THEN '2099-12-31 23:59:59' ELSE NULL END"
+      : "NULL";
+  const createdTimeExpr = hasCreatedTime
+    ? "CASE WHEN created_time IS NOT NULL AND TRIM(created_time) != '' THEN created_time ELSE CURRENT_TIMESTAMP END"
+    : hasCreatedAt
+      ? "CASE WHEN created_at IS NOT NULL AND TRIM(created_at) != '' THEN created_at ELSE CURRENT_TIMESTAMP END"
+      : "CURRENT_TIMESTAMP";
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec("BEGIN;");
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS users__new;
+      CREATE TABLE users__new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        member_expires_at TEXT DEFAULT NULL,
+        created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.prepare(`
+      INSERT INTO users__new (id, username, password, member_expires_at, created_time)
+      SELECT id, username, COALESCE(${passwordExpr}, ''), ${memberExpiresExpr}, ${createdTimeExpr}
+      FROM users
+    `).run();
+    db.exec(`
+      DROP TABLE users;
+      ALTER TABLE users__new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    throw error;
+  }
+}
+
+function ensureDefaultUser() {
+  const userCount = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  const seedUsername = DEFAULT_USERNAME || FALLBACK_USERNAME;
+  const seedPassword = DEFAULT_PASSWORD || FALLBACK_PASSWORD;
+
+  if (!seedUsername || !seedPassword) {
+    return;
+  }
+
+  validateCredentials(seedUsername, seedPassword);
+
+  if (DEFAULT_USERNAME && DEFAULT_PASSWORD) {
+    db.prepare(
+      `INSERT INTO users (username, password, member_expires_at)
+       VALUES (?, ?, NULL)
+       ON CONFLICT(username) DO UPDATE SET password = excluded.password`
+    ).run(seedUsername, seedPassword);
+    return;
+  }
+
+  if (userCount === 0) {
+    db.prepare("INSERT INTO users (username, password, member_expires_at) VALUES (?, ?, NULL)").run(seedUsername, seedPassword);
+    console.warn(`Seeded fallback user: ${seedUsername}`);
+  }
+}
+
+function validateCredentials(username, password) {
+  if (!username || username.length < 3 || username.length > 32) {
+    throw httpError(400, "账号长度需在 3 到 32 位之间");
+  }
+  if (!/^[a-z0-9_]+$/i.test(username)) {
+    throw httpError(400, "账号只能包含字母、数字、下划线");
+  }
+  if (!password || String(password).length < 6 || String(password).length > 64) {
+    throw httpError(400, "密码长度需在 6 到 64 位之间");
+  }
+}
+
+function handleRegister(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const existing = db.prepare("SELECT id FROM users WHERE username = ?").get(normalized);
+      if (existing) {
+        throw httpError(409, "账号已存在");
+      }
+
+      const result = db
+        .prepare("INSERT INTO users (username, password, member_expires_at) VALUES (?, ?, NULL)")
+        .run(normalized, normalizedPassword);
+      const session = createSession(result.lastInsertRowid);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, {
+        user: buildAuthUserPayload({
+          id: result.lastInsertRowid,
+          username: normalized,
+          member_expires_at: null,
+        }),
+      });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleLogin(req, res) {
+  readJsonBody(req)
+    .then(({ username, password }) => {
+      const normalized = normalizeUsername(username);
+      const normalizedPassword = password == null ? "" : String(password);
+      validateCredentials(normalized, normalizedPassword);
+
+      const user = db
+        .prepare("SELECT id, username, password, member_expires_at FROM users WHERE username = ?")
+        .get(normalized);
+      if (!user || normalizedPassword !== String(user.password || "")) {
+        throw httpError(401, "账号或密码错误");
+      }
+
+      const session = createSession(user.id);
+      setSessionCookie(res, session.token);
+      sendJson(res, 200, { user: buildAuthUserPayload(user) });
+    })
+    .catch((error) => sendKnownError(res, error));
+}
+
+function handleMe(req, res) {
+  const user = getUserFromRequest(req);
+  if (!user) {
+    sendJson(res, 401, { user: null });
+    return;
+  }
+  sendJson(res, 200, { user: buildAuthUserPayload(user) });
+}
+
+function handlePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  const payload = buildMembershipPromptPayload(user);
+  sendJson(res, user ? 200 : 401, payload);
+}
+
+function requirePrintPermission(req, res) {
+  const user = getUserFromRequest(req);
+  if (user && isMembershipActive(user.member_expires_at)) {
+    return true;
+  }
+  sendJson(res, user ? 403 : 401, {
+    error: "membership_required",
+    message: "在线打印和保存 PDF 需要会员，请添加微信 refresh_dd 开通。",
+    ...buildMembershipPromptPayload(user),
+  });
+  return false;
+}
+
+function isPrintApiRequest(requestUrl) {
+  if (requestUrl.pathname === "/api/bridge.php" && requestUrl.searchParams.get("function") === "downloaddoc") {
+    return true;
+  }
+  return requestUrl.pathname.startsWith("/api/static/kousuan_v2/pdf/");
+}
+
+function getUserFromRequest(req) {
+  const token = getSessionToken(req);
+  if (!token) return null;
+
+  const row = db
+    .prepare(
+      `SELECT users.id, users.username, users.member_expires_at, sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = ?`
+    )
+    .get(token);
+
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+    return null;
+  }
+  return row;
+}
+
+function buildAuthUserPayload(user) {
+  if (!user) return null;
+  const memberExpiresAt = normalizeMemberExpiresAt(user.member_expires_at);
+  const isMember = isMembershipActive(memberExpiresAt);
+  return {
+    id: Number(user.id),
+    username: user.username,
+    memberExpiresAt,
+    isMember,
+    canPrint: isMember,
+  };
+}
+
+function buildMembershipPromptPayload(user) {
+  const authUser = buildAuthUserPayload(user);
+  return {
+    canPrint: Boolean(authUser && authUser.canPrint),
+    isMember: Boolean(authUser && authUser.isMember),
+    memberExpiresAt: authUser ? authUser.memberExpiresAt : null,
+    wechat: "refresh_dd",
+    image: "/images/image.png",
+    plans: [
+      { title: "3个月", price: "29.9元" },
+      { title: "1年", price: "69.9元" },
+    ],
+  };
+}
+
+function normalizeMemberExpiresAt(value) {
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text ? text : null;
+}
+
+function isMembershipActive(value) {
+  const expiresAt = parseMembershipTime(value);
+  return Boolean(expiresAt && expiresAt.getTime() >= Date.now());
+}
+
+function parseMembershipTime(value) {
+  const text = normalizeMemberExpiresAt(value);
+  if (!text) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return new Date(`${text}T23:59:59+08:00`);
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(text)) {
+    return new Date(text.replace(" ", "T") + ":00+08:00");
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(text)) {
+    return new Date(text.replace(" ", "T") + "+08:00");
+  }
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function initDatabase() {
