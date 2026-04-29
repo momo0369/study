@@ -109,10 +109,11 @@ function serveStatic(requestPath, res) {
 
     const extension = path.extname(resolvedPath).toLowerCase();
     const contentType = MIME_TYPES[extension] || "application/octet-stream";
+    const disableCache = extension === ".html" || extension === ".js" || extension === ".css";
     res.writeHead(200, {
       "Content-Type": contentType,
       "Content-Length": stats.size,
-      "Cache-Control": extension === ".html" ? "no-cache" : "public, max-age=3600",
+      "Cache-Control": disableCache ? "no-cache" : "public, max-age=3600",
     });
 
     const stream = fs.createReadStream(resolvedPath);

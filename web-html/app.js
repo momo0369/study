@@ -1318,6 +1318,7 @@
   async function handlePrintAction(action) {
     const preview = state.printPreview;
     if (!preview) return;
+    if (!(await ensurePrintPermission())) return;
     if (action === "browser-print") {
       window.print();
       return;
@@ -1325,16 +1326,26 @@
     if (action === "download-pdf" || action === "download-answer") {
       const displaydaan = action === "download-answer" ? 1 : 0;
       try {
-        const payload = await api("downloaddoc", {
-        docid: String(preview.docId),
-        displaydaan: String(displaydaan),
-        printstyleid: String(preview.printStyleId),
-        setting: "2",
-        doctitle: preview.settings.docTitle,
-        namelabel: preview.settings.nameLabel,
-        scorelabel: preview.settings.scoreLabel,
-        jinju: preview.settings.jinju,
+        const params = new URLSearchParams({
+          function: "downloaddoc",
+          docid: String(preview.docId),
+          displaydaan: String(displaydaan),
+          printstyleid: String(preview.printStyleId),
+          setting: "2",
+          doctitle: preview.settings.docTitle,
+          namelabel: preview.settings.nameLabel,
+          scorelabel: preview.settings.scoreLabel,
+          jinju: preview.settings.jinju,
         });
+        const response = await fetch(`/api/bridge.php?${params.toString()}`);
+        const payload = await readJsonResponse(response);
+        if (response.status === 401 || response.status === 403) {
+          showPrintPermissionDialog(payload);
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
         const filePath = payload && payload.data && payload.data.filePath ? payload.data.filePath : "";
         if (!filePath) {
           notify("保存 PDF 失败。");
@@ -1419,10 +1430,11 @@
     render();
   }
 
-  function handle24Action(action) {
+  async function handle24Action(action) {
     const game = state.twentyfour;
     if (!game) return;
     if (action === "print-online") {
+      if (!(await ensurePrintPermission())) return;
       routeTo("twentyfour-preview", {
         title: encodeURIComponent("24点练习"),
         items: encodeURIComponent(JSON.stringify(game.timuObjectArr || [])),
@@ -1431,6 +1443,7 @@
       return;
     }
     if (action === "save-pdf") {
+      if (!(await ensurePrintPermission())) return;
       routeTo("twentyfour-preview", {
         title: encodeURIComponent("24点练习"),
         items: encodeURIComponent(JSON.stringify(game.timuObjectArr || [])),
@@ -1469,6 +1482,7 @@
   }
 
   async function handleTwentyfourPreviewAction(action) {
+    if (!(await ensurePrintPermission())) return;
     if (action === "print") {
       window.print();
       return;
@@ -1487,6 +1501,11 @@
             items: preview.items,
           }),
         });
+        if (response.status === 401 || response.status === 403) {
+          const payload = await readJsonResponse(response);
+          showPrintPermissionDialog(payload);
+          return;
+        }
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
@@ -2154,10 +2173,7 @@
 
   function isPrintEntry(el) {
     return (
-      el.dataset.nav === "print-select" ||
-      Boolean(el.dataset.openPrint) ||
       Boolean(el.dataset.printAction) ||
-      el.dataset.answerAction === "skip-print" ||
       el.dataset.twentyfourAction === "print-online" ||
       el.dataset.twentyfourAction === "save-pdf" ||
       el.dataset.twentyfourPreviewAction === "print" ||
@@ -2166,14 +2182,21 @@
   }
 
   async function ensurePrintPermission() {
-    if (state.auth.user && state.auth.user.canPrint) {
+    if (userHasActiveMembership(state.auth.user)) {
       return true;
     }
     try {
       const response = await fetch("/api/auth/print-permission");
       const data = await readJsonResponse(response);
-      if (data.canPrint) {
-        if (state.auth.user) state.auth.user.canPrint = true;
+      if (data.canPrint || data.isMember) {
+        if (state.auth.user) {
+          state.auth.user = {
+            ...state.auth.user,
+            canPrint: true,
+            isMember: true,
+            memberExpiresAt: data.memberExpiresAt || state.auth.user.memberExpiresAt || null,
+          };
+        }
         return true;
       }
       showPrintPermissionDialog(data);
