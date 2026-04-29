@@ -1,9 +1,19 @@
+databases:
+  - name: study-db
+    databaseName: study
+    plan: free
+
 services:
   - type: web
     name: study
     runtime: node
     plan: free
     rootDir: .
-    buildCommand: ""
+    buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: study-db
+          property: connectionString

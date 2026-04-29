@@ -7,6 +7,8 @@ const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 const { URL } = require("url");
 
+let PgPool = null;
+
 const HOST = process.env.HOST || "0.0.0.0";
 const PORT = Number(process.env.PORT || 8080);
 const WEB_ROOT = __dirname;
@@ -18,6 +20,7 @@ const DEFAULT_USERNAME = String(process.env.DEFAULT_USERNAME || process.env.ADMI
 const DEFAULT_PASSWORD = String(process.env.DEFAULT_PASSWORD || process.env.ADMIN_PASSWORD || "");
 const FALLBACK_USERNAME = "dongdong";
 const FALLBACK_PASSWORD = "123456";
+const USE_POSTGRES_AUTH = Boolean(process.env.DATABASE_URL);
 
 fs.mkdirSync(DATA_ROOT, { recursive: true });
 
@@ -36,49 +39,60 @@ const MIME_TYPES = {
 };
 
 const db = new DatabaseSync(DB_PATH);
-initMemberAccessDatabase();
+let activeMemberAccessPool = null;
 
-http
-  .createServer((req, res) => {
+startServer().catch((error) => {
+  console.error("Failed to start server", error);
+  process.exit(1);
+});
+
+async function startServer() {
+  await initActiveMemberAccessStorage();
+
+  http.createServer(async (req, res) => {
+    try {
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
 
     if (requestUrl.pathname === "/api/auth/register" && req.method === "POST") {
-      handleMemberAccessRegister(req, res);
+      await handleActiveMemberAccessRegister(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/auth/login" && req.method === "POST") {
-      handleMemberAccessLogin(req, res);
+      await handleActiveMemberAccessLogin(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/auth/me" && req.method === "GET") {
-      handleMemberAccessMe(req, res);
+      await handleActiveMemberAccessMe(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/auth/logout" && req.method === "POST") {
-      handleLogout(req, res);
+      await handleActiveMemberAccessLogout(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/auth/print-permission" && req.method === "GET") {
-      handleMemberAccessPrintPermission(req, res);
+      await handleActiveMemberAccessPrintPermission(req, res);
       return;
     }
     if (requestUrl.pathname === "/api/twentyfour-pdf" && req.method === "POST") {
-      if (!requireMemberAccessPrintPermission(req, res)) return;
+      if (!(await requireActiveMemberAccessPrintPermission(req, res))) return;
       handleTwentyfourPdf(req, res);
       return;
     }
 
     if (requestUrl.pathname.startsWith("/api/")) {
-      if (isMemberAccessProtectedPrintApiRequest(requestUrl) && !requireMemberAccessPrintPermission(req, res)) return;
+      if (isActiveMemberAccessProtectedPrintApiRequest(requestUrl) && !(await requireActiveMemberAccessPrintPermission(req, res))) return;
       proxyRequest(req, res, requestUrl);
       return;
     }
 
     serveStatic(requestUrl.pathname, res);
-  })
-  .listen(PORT, HOST, () => {
+    } catch (error) {
+      sendKnownError(res, error);
+    }
+  }).listen(PORT, HOST, () => {
     console.log(`Web app: http://${HOST}:${PORT}`);
   });
+}
 
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
@@ -189,6 +203,511 @@ function getUpstreamPath(requestUrl) {
     return `${requestUrl.pathname.slice("/api/static".length)}${requestUrl.search}`;
   }
   return requestUrl.pathname.replace(/^\/api/, "") + requestUrl.search;
+}
+
+function getActiveMemberAccessPoolClass() {
+  if (!PgPool) {
+    ({ Pool: PgPool } = require("pg"));
+  }
+  return PgPool;
+}
+
+async function initActiveMemberAccessStorage() {
+  initActiveMemberAccessSqlite();
+
+  if (!USE_POSTGRES_AUTH) {
+    return;
+  }
+
+  const Pool = getActiveMemberAccessPoolClass();
+  activeMemberAccessPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 5,
+    idleTimeoutMillis: 10000,
+    ssl: getActiveMemberAccessSslConfig(),
+  });
+
+  await activeMemberAccessPool.query("SELECT 1");
+  await initActiveMemberAccessPostgres();
+}
+
+function getActiveMemberAccessSslConfig() {
+  const sslMode = String(process.env.PGSSLMODE || "").toLowerCase();
+  if (sslMode === "disable" || process.env.RENDER === "true") {
+    return undefined;
+  }
+  return /sslmode=require/i.test(String(process.env.DATABASE_URL || "")) ? { rejectUnauthorized: false } : undefined;
+}
+
+function initActiveMemberAccessSqlite() {
+  db.exec(`
+    PRAGMA journal_mode = DELETE;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      member_expires_at TEXT DEFAULT NULL,
+      created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TEXT NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+  ensureActiveMemberAccessSqliteUsersTableSchema();
+  ensureActiveMemberAccessSqliteDefaultUser();
+}
+
+function ensureActiveMemberAccessSqliteUsersTableSchema() {
+  const columns = db.prepare("PRAGMA table_info(users)").all();
+  const targetColumns = ["id", "username", "password", "member_expires_at", "created_time"];
+  const alreadyMatches =
+    columns.length === targetColumns.length &&
+    targetColumns.every((name, index) => columns[index] && columns[index].name === name);
+
+  if (alreadyMatches) {
+    return;
+  }
+
+  const columnNames = new Set(columns.map((column) => column.name));
+  const hasPassword = columnNames.has("password");
+  const hasPasswordHash = columnNames.has("password_hash");
+  const hasMemberExpiresAt = columnNames.has("member_expires_at");
+  const hasCanPrint = columnNames.has("can_print");
+  const hasCreatedTime = columnNames.has("created_time");
+  const hasCreatedAt = columnNames.has("created_at");
+  const passwordExpr = hasPassword
+    ? "COALESCE(password, '')"
+    : hasPasswordHash
+      ? "COALESCE(password_hash, '')"
+      : "''";
+  const memberExpiresExpr = hasMemberExpiresAt
+    ? "NULLIF(TRIM(member_expires_at), '')"
+    : hasCanPrint
+      ? "CASE WHEN can_print IN (1, '1', 'true', 'TRUE') THEN '2099-12-31 23:59:59' ELSE NULL END"
+      : "NULL";
+  const createdTimeExpr = hasCreatedTime
+    ? "CASE WHEN created_time IS NOT NULL AND TRIM(created_time) != '' THEN created_time ELSE CURRENT_TIMESTAMP END"
+    : hasCreatedAt
+      ? "CASE WHEN created_at IS NOT NULL AND TRIM(created_at) != '' THEN created_at ELSE CURRENT_TIMESTAMP END"
+      : "CURRENT_TIMESTAMP";
+
+  db.exec("PRAGMA foreign_keys = OFF;");
+  db.exec("BEGIN;");
+  try {
+    db.exec(`
+      DROP TABLE IF EXISTS users__new;
+      CREATE TABLE users__new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        member_expires_at TEXT DEFAULT NULL,
+        created_time TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    db.prepare(`
+      INSERT INTO users__new (id, username, password, member_expires_at, created_time)
+      SELECT id, username, COALESCE(${passwordExpr}, ''), ${memberExpiresExpr}, ${createdTimeExpr}
+      FROM users
+    `).run();
+    db.exec(`
+      DROP TABLE users;
+      ALTER TABLE users__new RENAME TO users;
+      COMMIT;
+      PRAGMA foreign_keys = ON;
+    `);
+  } catch (error) {
+    db.exec("ROLLBACK;");
+    db.exec("PRAGMA foreign_keys = ON;");
+    throw error;
+  }
+}
+
+function ensureActiveMemberAccessSqliteDefaultUser() {
+  const row = db.prepare("SELECT COUNT(*) AS count FROM users").get();
+  const userCount = Number(row && row.count ? row.count : 0);
+  const seedUsername = DEFAULT_USERNAME || FALLBACK_USERNAME;
+  const seedPassword = DEFAULT_PASSWORD || FALLBACK_PASSWORD;
+
+  if (!seedUsername || !seedPassword) {
+    return;
+  }
+
+  validateActiveMemberAccessCredentials(seedUsername, seedPassword);
+
+  if (DEFAULT_USERNAME && DEFAULT_PASSWORD) {
+    db.prepare(
+      `INSERT INTO users (username, password, member_expires_at)
+       VALUES (?, ?, NULL)
+       ON CONFLICT(username) DO UPDATE SET password = excluded.password`
+    ).run(seedUsername, seedPassword);
+    return;
+  }
+
+  if (userCount === 0) {
+    db.prepare("INSERT INTO users (username, password, member_expires_at) VALUES (?, ?, NULL)").run(seedUsername, seedPassword);
+    console.warn(`Seeded fallback user: ${seedUsername}`);
+  }
+}
+
+async function initActiveMemberAccessPostgres() {
+  await activeMemberAccessPool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id BIGSERIAL PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      password TEXT NOT NULL,
+      member_expires_at TIMESTAMPTZ NULL,
+      created_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+  await activeMemberAccessPool.query(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMPTZ NOT NULL
+    );
+  `);
+  await activeMemberAccessPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS member_expires_at TIMESTAMPTZ NULL");
+  await activeMemberAccessPool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS created_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP");
+  await importActiveMemberAccessUsersFromSqliteIfNeeded();
+  await ensureActiveMemberAccessPostgresDefaultUser();
+}
+
+async function importActiveMemberAccessUsersFromSqliteIfNeeded() {
+  const countRow = await activeMemberAccessPool.query("SELECT COUNT(*)::int AS count FROM users");
+  const userCount = Number(countRow.rows[0] && countRow.rows[0].count ? countRow.rows[0].count : 0);
+  if (userCount > 0) {
+    return;
+  }
+
+  const sqliteUsers = db
+    .prepare("SELECT id, username, password, member_expires_at, created_time FROM users ORDER BY id")
+    .all();
+  if (!sqliteUsers.length) {
+    return;
+  }
+
+  const client = await activeMemberAccessPool.connect();
+  try {
+    await client.query("BEGIN");
+    for (const user of sqliteUsers) {
+      await client.query(
+        `INSERT INTO users (id, username, password, member_expires_at, created_time)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (username) DO NOTHING`,
+        [
+          Number(user.id),
+          user.username,
+          String(user.password || ""),
+          normalizeActiveMemberAccessImportValue(user.member_expires_at),
+          normalizeActiveMemberAccessImportValue(user.created_time) || new Date().toISOString(),
+        ]
+      );
+    }
+    await client.query(
+      `SELECT setval(
+        pg_get_serial_sequence('users', 'id'),
+        GREATEST(COALESCE((SELECT MAX(id) FROM users), 1), 1),
+        true
+      )`
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+function normalizeActiveMemberAccessImportValue(value) {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  const text = String(value).trim();
+  return text || null;
+}
+
+async function ensureActiveMemberAccessPostgresDefaultUser() {
+  const seedUsername = DEFAULT_USERNAME || FALLBACK_USERNAME;
+  const seedPassword = DEFAULT_PASSWORD || FALLBACK_PASSWORD;
+
+  if (!seedUsername || !seedPassword) {
+    return;
+  }
+
+  validateActiveMemberAccessCredentials(seedUsername, seedPassword);
+
+  if (DEFAULT_USERNAME && DEFAULT_PASSWORD) {
+    await activeMemberAccessPool.query(
+      `INSERT INTO users (username, password, member_expires_at)
+       VALUES ($1, $2, NULL)
+       ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password`,
+      [seedUsername, seedPassword]
+    );
+    return;
+  }
+
+  const countRow = await activeMemberAccessPool.query("SELECT COUNT(*)::int AS count FROM users");
+  const userCount = Number(countRow.rows[0] && countRow.rows[0].count ? countRow.rows[0].count : 0);
+  if (userCount === 0) {
+    await activeMemberAccessPool.query(
+      "INSERT INTO users (username, password, member_expires_at) VALUES ($1, $2, NULL)",
+      [seedUsername, seedPassword]
+    );
+    console.warn(`Seeded fallback user: ${seedUsername}`);
+  }
+}
+
+function validateActiveMemberAccessCredentials(username, password) {
+  if (!username || username.length < 3 || username.length > 32) {
+    throw httpError(400, "账号长度需在 3 到 32 位之间");
+  }
+  if (!/^[a-z0-9_]+$/i.test(username)) {
+    throw httpError(400, "账号只能包含字母、数字、下划线");
+  }
+  if (!password || String(password).length < 6 || String(password).length > 64) {
+    throw httpError(400, "密码长度需在 6 到 64 位之间");
+  }
+}
+
+async function handleActiveMemberAccessRegister(req, res) {
+  try {
+    const { username, password } = await readJsonBody(req);
+    const normalized = normalizeUsername(username);
+    const normalizedPassword = password == null ? "" : String(password);
+    validateActiveMemberAccessCredentials(normalized, normalizedPassword);
+
+    const existing = await findActiveMemberAccessUserByUsername(normalized);
+    if (existing) {
+      throw httpError(409, "账号已存在");
+    }
+
+    const user = await insertActiveMemberAccessUser(normalized, normalizedPassword);
+    const session = await createActiveMemberAccessSession(user.id);
+    setSessionCookie(res, session.token);
+    sendJson(res, 200, { user: buildActiveMemberAccessAuthUser(user) });
+  } catch (error) {
+    sendKnownError(res, error);
+  }
+}
+
+async function handleActiveMemberAccessLogin(req, res) {
+  try {
+    const { username, password } = await readJsonBody(req);
+    const normalized = normalizeUsername(username);
+    const normalizedPassword = password == null ? "" : String(password);
+    validateActiveMemberAccessCredentials(normalized, normalizedPassword);
+
+    const user = await findActiveMemberAccessUserByUsername(normalized);
+    if (!user || normalizedPassword !== String(user.password || "")) {
+      throw httpError(401, "账号或密码错误");
+    }
+
+    const session = await createActiveMemberAccessSession(user.id);
+    setSessionCookie(res, session.token);
+    sendJson(res, 200, { user: buildActiveMemberAccessAuthUser(user) });
+  } catch (error) {
+    sendKnownError(res, error);
+  }
+}
+
+async function handleActiveMemberAccessMe(req, res) {
+  const user = await getActiveMemberAccessUserFromRequest(req);
+  if (!user) {
+    sendJson(res, 401, { user: null });
+    return;
+  }
+  sendJson(res, 200, { user: buildActiveMemberAccessAuthUser(user) });
+}
+
+async function handleActiveMemberAccessLogout(req, res) {
+  const token = getSessionToken(req);
+  if (token) {
+    await deleteActiveMemberAccessSession(token);
+  }
+  clearSessionCookie(res);
+  sendJson(res, 200, { ok: true });
+}
+
+async function handleActiveMemberAccessPrintPermission(req, res) {
+  const user = await getActiveMemberAccessUserFromRequest(req);
+  sendJson(res, user ? 200 : 401, buildActiveMemberAccessPromptPayload(user));
+}
+
+async function requireActiveMemberAccessPrintPermission(req, res) {
+  const user = await getActiveMemberAccessUserFromRequest(req);
+  if (user && isActiveMemberAccessMembershipActive(user.member_expires_at)) {
+    return true;
+  }
+  sendJson(res, user ? 403 : 401, {
+    error: "membership_required",
+    message: "在线打印和保存 PDF 需要会员，请添加微信 refresh_dd 开通。",
+    ...buildActiveMemberAccessPromptPayload(user),
+  });
+  return false;
+}
+
+function isActiveMemberAccessProtectedPrintApiRequest(requestUrl) {
+  if (requestUrl.pathname === "/api/bridge.php" && requestUrl.searchParams.get("function") === "downloaddoc") {
+    return true;
+  }
+  return requestUrl.pathname.startsWith("/api/static/kousuan_v2/pdf/");
+}
+
+async function findActiveMemberAccessUserByUsername(username) {
+  if (USE_POSTGRES_AUTH) {
+    const result = await activeMemberAccessPool.query(
+      "SELECT id, username, password, member_expires_at, created_time FROM users WHERE username = $1",
+      [username]
+    );
+    return result.rows[0] || null;
+  }
+  return db.prepare("SELECT id, username, password, member_expires_at, created_time FROM users WHERE username = ?").get(username) || null;
+}
+
+async function insertActiveMemberAccessUser(username, password) {
+  if (USE_POSTGRES_AUTH) {
+    const result = await activeMemberAccessPool.query(
+      `INSERT INTO users (username, password, member_expires_at)
+       VALUES ($1, $2, NULL)
+       RETURNING id, username, password, member_expires_at, created_time`,
+      [username, password]
+    );
+    return result.rows[0];
+  }
+
+  const result = db.prepare("INSERT INTO users (username, password, member_expires_at) VALUES (?, ?, NULL)").run(username, password);
+  return {
+    id: Number(result.lastInsertRowid),
+    username,
+    password,
+    member_expires_at: null,
+    created_time: new Date().toISOString(),
+  };
+}
+
+async function createActiveMemberAccessSession(userId) {
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
+
+  if (USE_POSTGRES_AUTH) {
+    await activeMemberAccessPool.query(
+      "INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)",
+      [token, Number(userId), expiresAt]
+    );
+    return { token, expiresAt };
+  }
+
+  db.prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)").run(token, userId, expiresAt);
+  return { token, expiresAt };
+}
+
+async function deleteActiveMemberAccessSession(token) {
+  if (USE_POSTGRES_AUTH) {
+    await activeMemberAccessPool.query("DELETE FROM sessions WHERE token = $1", [token]);
+    return;
+  }
+  db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
+}
+
+async function getActiveMemberAccessUserFromRequest(req) {
+  const token = getSessionToken(req);
+  if (!token) return null;
+
+  if (USE_POSTGRES_AUTH) {
+    const result = await activeMemberAccessPool.query(
+      `SELECT users.id, users.username, users.member_expires_at, sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = $1`,
+      [token]
+    );
+    const row = result.rows[0] || null;
+    if (!row) return null;
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+      await deleteActiveMemberAccessSession(token);
+      return null;
+    }
+    return row;
+  }
+
+  const row = db
+    .prepare(
+      `SELECT users.id, users.username, users.member_expires_at, sessions.expires_at
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.token = ?`
+    )
+    .get(token);
+
+  if (!row) return null;
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    await deleteActiveMemberAccessSession(token);
+    return null;
+  }
+  return row;
+}
+
+function buildActiveMemberAccessAuthUser(user) {
+  if (!user) return null;
+  const memberExpiresAt = normalizeActiveMemberAccessExpiresAt(user.member_expires_at);
+  const isMember = isActiveMemberAccessMembershipActive(memberExpiresAt);
+  return {
+    id: Number(user.id),
+    username: user.username,
+    memberExpiresAt,
+    isMember,
+    canPrint: isMember,
+  };
+}
+
+function buildActiveMemberAccessPromptPayload(user) {
+  const authUser = buildActiveMemberAccessAuthUser(user);
+  return {
+    canPrint: Boolean(authUser && authUser.canPrint),
+    isMember: Boolean(authUser && authUser.isMember),
+    memberExpiresAt: authUser ? authUser.memberExpiresAt : null,
+    wechat: "refresh_dd",
+    image: "/images/image.png",
+    plans: [
+      { title: "3个月", price: "29.9元" },
+      { title: "1年", price: "69.9元" },
+    ],
+  };
+}
+
+function normalizeActiveMemberAccessExpiresAt(value) {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  const text = String(value).trim();
+  return text || null;
+}
+
+function isActiveMemberAccessMembershipActive(value) {
+  const expiresAt = parseActiveMemberAccessExpiresAt(value);
+  return Boolean(expiresAt && expiresAt.getTime() >= Date.now());
+}
+
+function parseActiveMemberAccessExpiresAt(value) {
+  const normalized = normalizeActiveMemberAccessExpiresAt(value);
+  if (!normalized) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return new Date(`${normalized}T23:59:59+08:00`);
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(normalized)) {
+    return new Date(normalized.replace(" ", "T") + ":00+08:00");
+  }
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    return new Date(normalized.replace(" ", "T") + "+08:00");
+  }
+
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function initMemberAccessDatabase() {

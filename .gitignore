@@ -1,3 +1,4 @@
+node_modules/
 web-html/data.sqlite-shm
 web-html/data.sqlite-wal
 web-html/*.log
